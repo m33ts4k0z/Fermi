@@ -1,8 +1,72 @@
 import {I18n} from "./i18n.js";
 import {makeRegister} from "./register.js";
-import {mobile} from "./utils/utils.js";
+import {getapiurls, getBulkInfo} from "./utils/utils.js";
+
+interface InstanceData {
+	name: string;
+	description?: string;
+	descriptionLong?: string;
+	image?: string;
+	url?: string;
+	display?: boolean;
+	online?: boolean;
+	uptime?: {alltime: number; daytime: number; weektime: number};
+	urls?: {
+		wellknown: string;
+		api: string;
+		cdn: string;
+		gateway: string;
+		login?: string;
+	};
+}
+
+async function checkInstanceHealth(instance: InstanceData): Promise<boolean> {
+	try {
+		let api = instance.urls?.api;
+		if (!api && instance.url) {
+			const urls = await getapiurls(instance.url);
+			api = urls?.api;
+		}
+		if (!api) {
+			console.log(`Checking health for ${instance.name}: No API`);
+			return false;
+		}
+
+		const response = await fetch(`${api}/ping`, {method: "GET"});
+		console.log(`Checking health for ${instance.name}: ${response.status}`);
+		return response.ok;
+	} catch (e) {
+		console.log(`Checking health for ${instance.name}: Error`);
+		return false;
+	}
+}
+
+function getSavedServers(): InstanceData[] {
+	const userInfo = getBulkInfo();
+	if (!userInfo?.users) return [];
+
+	const servers: InstanceData[] = [];
+	const seen = new Set<string>();
+
+	for (const key of Object.keys(userInfo.users)) {
+		const user = userInfo.users[key];
+		if (!user?.serverurls?.wellknown) continue;
+
+		const wellknown = user.serverurls.wellknown;
+		if (seen.has(wellknown)) continue;
+		seen.add(wellknown);
+
+		servers.push({
+			name: new URL(wellknown).hostname,
+			url: wellknown,
+			urls: user.serverurls,
+			description: "Saved server",
+		});
+	}
+
+	return servers;
+}
 if (window.location.pathname === "/" || window.location.pathname.startsWith("/index")) {
-	console.log(mobile);
 	const serverbox = document.getElementById("instancebox") as HTMLDivElement;
 
 	(async () => {
@@ -41,92 +105,74 @@ if (window.location.pathname === "/" || window.location.pathname.startsWith("/in
 				},
 			);
 	}
-	fetch("/instances.json")
-		.then((_) => _.json())
-		.then(
-			async (
-				json: {
-					name: string;
-					description?: string;
-					descriptionLong?: string;
-					image?: string;
-					url?: string;
-					display?: boolean;
-					online?: boolean;
-					uptime: {alltime: number; daytime: number; weektime: number};
-					urls: {
-						wellknown: string;
-						api: string;
-						cdn: string;
-						gateway: string;
-						login?: string;
-					};
-				}[],
-			) => {
-				await I18n.done;
-				console.warn(json);
-				for (const instance of json) {
-					if (instance.display === false) {
-						continue;
-					}
-					const div = document.createElement("div");
-					div.classList.add("flexltr", "instance");
-					if (instance.image) {
-						const img = document.createElement("img");
-						img.alt = I18n.home.icon(instance.name);
-						img.src = instance.image;
-						div.append(img);
-					}
-					const statbox = document.createElement("div");
-					statbox.classList.add("flexttb", "flexgrow");
+	// Check for saved servers in localStorage first
+	const savedServers = getSavedServers();
 
-					{
-						const textbox = document.createElement("div");
-						textbox.classList.add("flexttb", "instancetextbox");
-						const title = document.createElement("h2");
-						title.innerText = instance.name;
-						if (instance.online !== undefined) {
-							const status = document.createElement("span");
-							status.innerText = instance.online ? "Online" : "Offline";
-							status.classList.add("instanceStatus");
-							title.append(status);
-						}
-						textbox.append(title);
-						if (instance.description || instance.descriptionLong) {
-							const p = document.createElement("p");
-							if (instance.descriptionLong) {
-								p.innerText = instance.descriptionLong;
-							} else if (instance.description) {
-								p.innerText = instance.description;
-							}
-							textbox.append(p);
-						}
-						statbox.append(textbox);
+	async function displayInstances(instances: InstanceData[]) {
+		await I18n.done;
+		for (const instance of instances) {
+			if (instance.display === false) {
+				continue;
+			}
+			const div = document.createElement("div");
+			div.classList.add("flexltr", "instance");
+			if (instance.image) {
+				const img = document.createElement("img");
+				img.alt = I18n.home.icon(instance.name);
+				img.src = instance.image;
+				div.append(img);
+			}
+			const statbox = document.createElement("div");
+			statbox.classList.add("flexttb", "flexgrow");
+
+			// Track online status for click handler
+			let isOnline: boolean | undefined = undefined;
+
+			{
+				const textbox = document.createElement("div");
+				textbox.classList.add("flexttb", "instancetextbox");
+				const title = document.createElement("h2");
+				title.innerText = instance.name;
+				textbox.append(title);
+
+				if (instance.description || instance.descriptionLong) {
+					const p = document.createElement("p");
+					if (instance.descriptionLong) {
+						p.innerText = instance.descriptionLong;
+					} else if (instance.description) {
+						p.innerText = instance.description;
 					}
-					if (instance.uptime) {
-						const stats = document.createElement("div");
-						stats.classList.add("flexltr");
-						const span = document.createElement("span");
-						span.innerText = I18n.home.uptimeStats(
-							Math.round(instance.uptime.alltime * 100) + "",
-							Math.round(instance.uptime.weektime * 100) + "",
-							Math.round(instance.uptime.daytime * 100) + "",
-						);
-						stats.append(span);
-						statbox.append(stats);
-					}
-					div.append(statbox);
-					div.onclick = (_) => {
-						if (instance.online !== false) {
-							makeRegister(true, instance.name);
-						} else {
-							alert(I18n.home.warnOffiline());
-						}
-					};
-					serverbox.append(div);
+					textbox.append(p);
 				}
-			},
-		);
+				statbox.append(textbox);
+			}
+
+			// Run health check asynchronously, log to console
+			checkInstanceHealth(instance).then((online) => {
+				isOnline = online;
+			});
+
+			div.append(statbox);
+			div.onclick = (_) => {
+				if (isOnline !== false) {
+					makeRegister(true, instance.name);
+				} else {
+					alert(I18n.home.warnOffiline());
+				}
+			};
+			serverbox.append(div);
+		}
+	}
+
+	if (savedServers.length > 0) {
+		// Use saved servers from localStorage, skip instances.json
+		displayInstances(savedServers);
+	} else {
+		// No saved servers, fetch from instances.json
+		fetch("/instances.json")
+			.then((_) => _.json())
+			.then((json: InstanceData[]) => displayInstances(json));
+	}
 
 	const slides = document.getElementById("ScreenshotSlides");
 	if (slides) {

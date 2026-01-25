@@ -80,8 +80,10 @@ export async function getApiUrlsV1(url: string): Promise<ApiUrls | null> {
 	);
 	checkJsonResponse(policiesRes, "policies/instance/domains");
 	const policies: any = await policiesRes.json();
+	const base = (policies.apiEndpoint || "").replace(/\/$/, "");
+	const version = String(policies.defaultApiVersion ?? "9");
 	return {
-		api: policies.apiEndpoint,
+		api: base ? `${base}/api/v${version}` : policies.api,
 		gateway: policies.gateway,
 		cdn: policies.cdn,
 		wellknown: url,

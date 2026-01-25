@@ -1,7 +1,7 @@
 import http from "http";
 import fs from "node:fs/promises";
 import path from "node:path";
-import {observe} from "./stats.js";
+// Health checks moved to client-side (home.ts)
 import {getApiUrls} from "./utils.js";
 import {fileURLToPath} from "node:url";
 import {readFileSync} from "fs";
@@ -165,11 +165,18 @@ for (const instance of instances) {
 	instanceNames.set(instance.name, instance);
 }
 
+const DEFAULT_INSTANCES_REMOTE_URL =
+	"https://raw.githubusercontent.com/spacebarchat/spacebarchat/master/instances/instances.json";
+
 async function updateInstances(): Promise<void> {
+	const remoteUrl = process.env.JANK_INSTANCES_REMOTE_URL;
+	if (remoteUrl === "") {
+		// Explicitly disabled: use only local instances.json
+		return;
+	}
+	const url = remoteUrl || DEFAULT_INSTANCES_REMOTE_URL;
 	try {
-		const response = await fetch(
-			"https://raw.githubusercontent.com/spacebarchat/spacebarchat/master/instances/instances.json",
-		);
+		const response = await fetch(url);
 		const json = (await response.json()) as Instance[];
 		for (const instance of json) {
 			if (instanceNames.has(instance.name)) {
@@ -185,7 +192,7 @@ async function updateInstances(): Promise<void> {
 				instances.push(instance as any);
 			}
 		}
-		observe(instances);
+		// Health checks are now done client-side in home.ts
 	} catch (error) {
 		console.error("Error updating instances:", error);
 	}

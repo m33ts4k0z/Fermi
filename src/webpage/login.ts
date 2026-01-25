@@ -3,6 +3,15 @@ import {I18n} from "./i18n.js";
 import {Dialog, FormError} from "./settings.js";
 import {makeRegister} from "./register.js";
 import {trimTrailingSlashes} from "./utils/netUtils";
+
+async function checkHealth(api: string, name: string): Promise<void> {
+	try {
+		const response = await fetch(`${api}/ping`, {method: "GET"});
+		console.log(`Checking health for ${name}: ${response.status}`);
+	} catch {
+		console.log(`Checking health for ${name}: Error`);
+	}
+}
 function generateRecArea(recover = document.getElementById("recover")) {
 	if (!recover) return;
 	recover.innerHTML = "";
@@ -54,10 +63,17 @@ export async function makeLogin(
 	const dialog = new Dialog("");
 	const opt = dialog.options;
 	opt.addTitle(I18n.login.login());
+	let lastHealthCheckApi: string | null = null;
 	const picker = opt.addInstancePicker(
 		(info) => {
 			form.fetchURL = trimTrailingSlashes(info.api) + "/auth/login";
 			recover(info, rec);
+			// Health check only when instance changes (onchange can fire 3x for same instance)
+			const api = trimTrailingSlashes(info.api);
+			if (api !== lastHealthCheckApi) {
+				lastHealthCheckApi = api;
+				checkHealth(api, new URL(info.wellknown).hostname);
+			}
 		},
 		{
 			instance,

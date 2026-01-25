@@ -423,8 +423,6 @@ export async function getapiurls(str: string): Promise<InstanceUrls | null> {
 	str = str.trim();
 	if (!str) return null;
 
-	console.info("Attempting to fetch .well-known's for", str);
-
 	// Override first:
 	let urls: InstanceUrls | null = await getInstanceInfo(str);
 	if (urls) return urls;
@@ -453,23 +451,11 @@ export async function getInstanceInfo(str: string): Promise<InstanceInfo | null>
 		});
 	}
 
-	console.info("Checking if we already know", str, "in our instance lists:", {
-		stringURLMap,
-		stringURLsMap,
-	});
-
 	if (stringURLMap.has(str)) {
-		console.error("OOH WE GOT STRING->URL MAP ENTRY FOR", str, "!!!!", stringURLMap.get(str));
 		return (await getapiurls(stringURLMap.get(str)!)) as InstanceInfo;
 	}
 
 	if (stringURLsMap.has(str)) {
-		console.error(
-			"WE GOT URL->INSTANCE MAP ENTRY FOR ",
-			str,
-			"!!!!!!!!!!11",
-			stringURLsMap.get(str),
-		);
 		return stringURLsMap.get(str) as InstanceInfo;
 	}
 

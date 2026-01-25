@@ -120,7 +120,7 @@ function scheduleHealthCheck(instance: Instance, api: string): void {
 
 async function checkHealth(instance: Instance, api: string, tries = 0): Promise<void> {
 	try {
-		const response = await fetch(`${api}/ping`, {method: "HEAD"});
+		const response = await fetch(`${api}/ping`, {method: "GET"});
 		console.log(`Checking health for ${instance.name}: ${response.status}`);
 		if (response.ok || tries > 3) {
 			setStatus(instance, response.ok);

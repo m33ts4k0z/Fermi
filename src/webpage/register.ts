@@ -4,11 +4,14 @@ import {makeLogin} from "./login.js";
 import {MarkDown} from "./markdown.js";
 import {Dialog, FormError} from "./settings.js";
 import {trimTrailingSlashes} from "./utils/netUtils";
+
+let lastTosApi: string | null = null;
 export async function makeRegister(
 	trasparentBg = false,
 	instance = "",
 	handle?: (user: Specialuser) => void,
 ) {
+	lastTosApi = null;
 	const dialog = new Dialog("");
 	const opt = dialog.options;
 	opt.addTitle(I18n.htmlPages.createAccount());
@@ -91,9 +94,14 @@ export async function makeRegister(
 }
 async function tosLogic(box: HTMLElement) {
 	const instanceInfo = JSON.parse(localStorage.getItem("instanceinfo") ?? "{}");
-	const apiurl = new URL(instanceInfo.api);
+	const api = instanceInfo?.api;
+	if (!api) return;
+	if (api === lastTosApi) return;
+	lastTosApi = api;
+	const apiurl = new URL(api);
 	const urlstr = apiurl.toString();
 	const response = await fetch(urlstr + (urlstr.endsWith("/") ? "" : "/") + "ping");
+	console.log(`Checking health for ${new URL(instanceInfo.wellknown || instanceInfo.api).hostname}: ${response.status}`);
 	const data = await response.json();
 	const tosPage = data.instance.tosPage;
 	if (!box) return;
