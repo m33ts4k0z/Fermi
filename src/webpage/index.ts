@@ -176,7 +176,11 @@ if (window.location.pathname.startsWith("/channels")) {
 			channel.editLast();
 			return;
 		}
-		channel.typingstart();
+		if (!content.trim()) {
+			channel.clearLocalTyping();
+		} else if (event.key !== "Enter" || event.shiftKey) {
+			channel.typingstart();
+		}
 
 		if (event.key === "Enter" && !event.shiftKey) {
 			if (!channel.canMessageRightNow()) return;
@@ -247,6 +251,16 @@ if (window.location.pathname.startsWith("/channels")) {
 			event.preventDefault();
 			event.stopImmediatePropagation();
 		}
+	});
+	typebox.addEventListener("input", () => {
+		const ch = thisUser.channelfocus;
+		if (!ch) return;
+		if (!MarkDown.gatherBoxText(typebox).trim()) ch.clearLocalTyping();
+	});
+	typebox.addEventListener("focus", () => {
+		const ch = thisUser.channelfocus;
+		if (!ch) return;
+		if (!MarkDown.gatherBoxText(typebox).trim()) ch.clearLocalTyping();
 	});
 	markdown.giveBox(typebox);
 	{

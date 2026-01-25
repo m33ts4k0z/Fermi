@@ -2413,6 +2413,18 @@ class Channel extends SnowFlake {
 			headers: this.headers,
 		});
 	}
+	/** Remove the local user from the typing map and refresh UI. Call when a message is sent or when the user clears the textbox. Resets the typing throttle so the next keystroke can POST /typing again. */
+	clearLocalTyping(): void {
+		for (const [memb] of this.typingmap) {
+			if (memb.id === this.localuser.user.id) {
+				this.typingmap.delete(memb);
+				break;
+			}
+		}
+		this.typing = 0;
+		this.rendertyping();
+		this.localuser.user.statusChange();
+	}
 	get trueNotiValue() {
 		const val = this.notification;
 		if (val === "default") {
@@ -2769,6 +2781,7 @@ class Channel extends SnowFlake {
 				} else {
 					ressy("Ok");
 					onRes("Ok");
+					this.clearLocalTyping();
 					if (!resOnce && res?.status) {
 						resOnce = true;
 					}
