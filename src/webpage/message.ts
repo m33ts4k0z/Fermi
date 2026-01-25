@@ -529,7 +529,6 @@ class Message extends SnowFlake {
 	}
 	deleteEvent() {
 		if (!this.channel.messages.has(this.id)) return;
-		console.log("deleted");
 		this.channel.infinite.deleteId(this.id);
 		if (this.div) {
 			this.div.remove();
@@ -576,7 +575,6 @@ class Message extends SnowFlake {
 				this.channel.lastreadmessageid = undefined;
 			}
 		}
-		console.log("deleted done");
 	}
 	reactdiv!: WeakRef<HTMLDivElement>;
 	blockedPropigate() {

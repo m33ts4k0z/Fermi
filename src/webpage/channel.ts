@@ -1919,6 +1919,13 @@ class Channel extends SnowFlake {
 	async typingStart(typing: startTypingjson): Promise<void> {
 		const memb = await Member.new(typing.d.member!, this.guild);
 		if (!memb) return;
+		// For self: ignore stale TYPING_START when the input is empty (e.g. after send; gateway can deliver TYPING_START after MESSAGE_CREATE).
+		if (memb.id === this.localuser.user.id) {
+			const typebox = document.getElementById("typebox");
+			if (typebox && !MarkDown.gatherBoxText(typebox as HTMLDivElement).trim()) {
+				return;
+			}
+		}
 		this.typingmap.set(memb, Date.now());
 		memb.user.statusChange();
 		setTimeout(() => {
@@ -1926,7 +1933,6 @@ class Channel extends SnowFlake {
 			memb.user.statusChange();
 		}, 10000);
 		if (memb.id === this.localuser.user.id) {
-			console.log("you is typing");
 			return;
 		}
 		console.log("user is typing and you should see it");
@@ -2488,7 +2494,7 @@ class Channel extends SnowFlake {
 		nonce: string,
 		embeds: embedjson[] = [],
 	) {
-		if (this.nonces.has(nonce)) return;
+	if (this.nonces.has(nonce)) return;
 		const m = new Message(
 			{
 				author: this.localuser.user.tojson(),
@@ -2556,10 +2562,11 @@ class Channel extends SnowFlake {
 		buttons.append(retryB, dont);
 
 		if (this === this.localuser.channelfocus) {
+			// Don't await - let scroller update async while XHR is sent immediately
 			if (!this.infinitefocus) {
-				await this.tryfocusinfinate();
+				this.tryfocusinfinate();
 			}
-			await this.infinite.addedBottom();
+			this.infinite.addedBottom();
 		}
 
 		return {
@@ -2785,6 +2792,17 @@ class Channel extends SnowFlake {
 					if (!resOnce && res?.status) {
 						resOnce = true;
 					}
+					// Process message immediately from XHR response instead of waiting for gateway
+					const messageData = res.response as messagejson;
+					if (messageData && messageData.id) {
+						const fakeGatewayEvent: messageCreateJson = {
+							op: 0,
+							d: {...messageData, guild_id: this.guild.id, channel_id: this.id},
+							s: 0,
+							t: "MESSAGE_CREATE",
+						};
+						this.messageCreate(fakeGatewayEvent);
+					}
 				}
 				resolve();
 			};
@@ -2922,6 +2940,10 @@ class Channel extends SnowFlake {
 		if (!this.hasPermission("VIEW_CHANNEL")) {
 			return;
 		}
+		// Skip if we already processed this message (e.g. from XHR response before gateway)
+		if (this.messages.has(messagep.d.id)) {
+			return;
+		}
 		this.nonces.add(messagep.d.nonce);
 		setTimeout(
 			() => {
@@ -2965,6 +2987,10 @@ class Channel extends SnowFlake {
 				next.generateMessage();
 			}
 			if (this == this.localuser.channelfocus) {
+				if (!this.infinitefocus) {
+					await this.tryfocusinfinate();
+				}
+				await this.infinite.addedBottom();
 				await this.goToBottom();
 			}
 		}
