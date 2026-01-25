@@ -242,14 +242,12 @@ class VoiceFactory {
 			voice.startWS(voice2.session_id, create.d.rtc_server_id);
 			let video = false;
 			voice.onSatusChange = (e) => {
-				console.log("Stream voice status changed:", e, "stream:", !!stream, "video started:", video);
 				if (e === "done" && stream && !video) {
-					console.log("Starting video stream NOW!");
+					console.log("Starting video stream");
 					voice.startVideo(stream);
 					video = true;
-				} else if (e === "done") {
-					console.warn("Status is done but conditions not met - stream:", stream, "video:", video);
 				}
+				// After video starts, additional "done" events from ontrack are expected
 			};
 
 			voice2.gotStream(voice, user);
@@ -629,12 +627,7 @@ a=rtcp-mux\r`;
 				}
 
 				const senders = this.senders.difference(this.ssrcMap);
-				console.log(senders, this.ssrcMap);
 				let made12 = false;
-				this.pc
-					?.getStats()
-					.then((_) => _.forEach((_) => _.type === "local-candidate" || console.error(_)));
-				console.log(pc.localDescription?.sdp);
 				for (const sender of senders) {
 					const d = await sender.getStats();
 					let found = false;
@@ -644,7 +637,6 @@ a=rtcp-mux\r`;
 							found = true;
 							this.ssrcMap.set(sender, thing.ssrc);
 							this.makeOp12(sender);
-							console.warn("ssrc");
 						}
 					});
 					//TODO Firefox made me do this, if I can figure out how to not do this, that'd be great
@@ -694,7 +686,6 @@ a=rtcp-mux\r`;
 				detectDone();
 				while (!this.counter) await new Promise((res) => setTimeout(res, 100));
 				if (this.pc && this.counter) {
-					console.warn("in here :3");
 					if (pc.signalingState === "have-local-offer") {
 						const val = (Math.random() * 1000) ^ 0;
 						logState("update", "start sent remote " + val);
@@ -750,14 +741,11 @@ a=rtcp-mux\r`;
 				Array.from(stats).forEach((_) => {
 					if (_[1].ssrc) {
 						video_ssrc = _[1].ssrc;
-						console.warn(_);
 					}
 					if (_[1].rtxSsrc) {
 						rtx_ssrc = _[1].rtxSsrc;
 					}
 				});
-				const settings = cammera.getSettings();
-				console.error(settings);
 				attemps++;
 				await new Promise((res) => setTimeout(res, 100));
 			} while (!video_ssrc || !rtx_ssrc);
@@ -767,7 +755,6 @@ a=rtcp-mux\r`;
 	async makeOp12(
 		sender: RTCRtpSender | undefined | [RTCRtpSender, number] = this.ssrcMap.entries().next().value,
 	) {
-		console.warn("making 12?");
 		if (!this.ws) return;
 		if (sender instanceof Array) {
 			sender = sender[0];
@@ -782,9 +769,7 @@ a=rtcp-mux\r`;
 			return;
 		}
 
-		console.log(this.ssrcMap);
 		try {
-			console.error("start 12");
 			this.ws.send(
 				JSON.stringify({
 					op: 12,
@@ -810,9 +795,8 @@ a=rtcp-mux\r`;
 				}),
 			);
 			this.status = "sendingStreams";
-			console.error("made 12");
 		} catch (e) {
-			console.error(e);
+			console.error("Failed to send op12:", e);
 		}
 	}
 	senders: Set<RTCRtpSender> = new Set();
