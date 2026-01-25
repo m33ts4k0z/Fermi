@@ -42,8 +42,7 @@ export async function getApiUrls(
 		return await getApiUrlsV2(url);
 	} catch (e) {
 		console.warn(
-			`[WARN] Failed to get V2 API URLs for ${hostName}, trying V1...`,
-			(e as Error).message,
+			`[WARN] V2 well-known not available for ${hostName}, using V1 (${(e as Error).message})`,
 		);
 		try {
 			return await getApiUrlsV1(url);
@@ -60,13 +59,27 @@ interface WellKnownV1 {
 	api: string;
 }
 
+function checkJsonResponse(res: Response, label: string): void {
+	if (!res.ok) {
+		throw new Error(`${label} returned ${res.status}`);
+	}
+	const ct = (res.headers.get("content-type") || "").toLowerCase();
+	if (!ct.includes("application/json")) {
+		throw new Error(`${label} returned non-JSON (${ct.split(";")[0] || "unknown"})`);
+	}
+}
+
 export async function getApiUrlsV1(url: string): Promise<ApiUrls | null> {
-	const info: WellKnownV1 = await fetch(`${url}.well-known/spacebar`).then((res) => res.json());
+	const res = await fetch(`${url}.well-known/spacebar`);
+	checkJsonResponse(res, "V1 well-known");
+	const info: WellKnownV1 = await res.json();
 	const api = info.api;
 	const apiUrl = new URL(api);
-	const policies: any = await fetch(
+	const policiesRes = await fetch(
 		`${api}${apiUrl.pathname.includes("api") ? "" : "api"}/policies/instance/domains`,
-	).then((res) => res.json());
+	);
+	checkJsonResponse(policiesRes, "policies/instance/domains");
+	const policies: any = await policiesRes.json();
 	return {
 		api: policies.apiEndpoint,
 		gateway: policies.gateway,
@@ -99,9 +112,9 @@ interface WellKnownV2 {
 }
 
 export async function getApiUrlsV2(url: string): Promise<ApiUrls | null> {
-	const info: WellKnownV2 = await fetch(`${url}.well-known/spacebar/client`).then((res) =>
-		res.json(),
-	);
+	const res = await fetch(`${url}.well-known/spacebar/client`);
+	checkJsonResponse(res, "V2 well-known");
+	const info: WellKnownV2 = await res.json();
 	return {
 		api: info.api.baseUrl + "/api/v" + info.api.apiVersions.default,
 		gateway: info.gateway.baseUrl,
