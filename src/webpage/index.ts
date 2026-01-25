@@ -10,6 +10,7 @@ import "./utils/pollyfills.js";
 import {makeLogin} from "./login.js";
 import {Hover} from "./hover.js";
 import "./templatePage.js";
+import "./admin.js";
 import "./more.js";
 import "./recover.js";
 import "./home.js";

@@ -4712,3 +4712,64 @@ img.error::after {
 	object-fit: cover;
 	opacity: 0.8;
 }
+
+/* Admin page */
+.admin-page {
+	padding: 16px;
+	overflow: auto;
+	height: 100%;
+}
+.admin-denied {
+	padding: 24px;
+	text-align: center;
+}
+.admin-denied a {
+	color: var(--primary-text-soft);
+}
+.admin-nav {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+.admin-tab-btn {
+	padding: 8px 16px;
+	border-radius: 6px;
+	background: var(--secondary-bg);
+	color: var(--primary-text);
+	border: none;
+	cursor: pointer;
+}
+.admin-tab-btn:hover,
+.admin-tab-btn.active {
+	background: var(--button-bg);
+}
+.admin-content {
+	min-height: 200px;
+}
+.admin-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+.admin-table th,
+.admin-table td {
+	padding: 8px;
+	text-align: left;
+	border-bottom: 1px solid var(--secondary-bg);
+}
+.admin-btn {
+	padding: 4px 12px;
+	border-radius: 4px;
+	background: var(--button-bg);
+	color: var(--primary-text);
+	border: none;
+	cursor: pointer;
+}
+.admin-btn:hover {
+	background: color-mix(in srgb, var(--button-bg), black 20%);
+}
+.admin-btn-danger {
+	background: var(--red);
+}
+.admin-btn-danger:hover {
+	background: color-mix(in srgb, var(--red), black 20%);
+}

@@ -210,6 +210,13 @@ class Localuser {
 			},
 		);
 		menu.addButton(
+			"Admin",
+			function () {
+				window.location.href = "/admin";
+			},
+			{ visible: function () { return this.rights?.hasPermission("OPERATOR") ?? false; } },
+		);
+		menu.addButton(
 			() => I18n.switchAccounts(),
 			function () {
 				Localuser.showAccountSwitcher(this);
