@@ -1,16 +1,34 @@
 {
-	"name": "jankclient",
+	"name": "fermi",
+	"productName": "Fermi",
 	"version": "0.2.0",
-	"description": "A Spacebar Client written in TS, HTML and CSS. to run, clone the repo and do either `npm start` or `bun start` both bun and node are supported, and both should function as expected. To access Fermi Client after init simply go to http://localhost:8080/login and login with your username and password.",
-	"main": ".dist/index.js",
+	"description": "A Spacebar Client written in TS, HTML and CSS with voice and video streaming support.",
+	"main": "dist-electron/main.js",
 	"type": "module",
+	"engines": {
+		"node": ">=18.0.0"
+	},
 	"scripts": {
 		"bunBuild": "bun build.ts",
 		"build": "node buildnode.js && node build.js",
-		"start": "node dist/index.js"
+		"build:web": "npm run build",
+		"build:electron": "tsc -p electron/tsconfig.json",
+		"build:all": "npm run build:web && npm run build:electron",
+		"start": "node dist/index.js",
+		"start:electron": "npm run build:all && electron .",
+		"dev:electron": "concurrently \"npm run start\" \"wait-on http://localhost:8080 && electron .\"",
+		"pack": "npm run build:all && electron-builder --dir",
+		"dist": "npm run build:all && electron-builder",
+		"dist:win": "npm run build:all && electron-builder --win",
+		"dist:win:portable": "npm run build:all && electron-builder --win portable",
+		"postinstall": "electron-builder install-app-deps"
 	},
 	"author": "MathMan05",
 	"license": "GPL-3.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/MathMan05/Fermi"
+	},
 	"dependencies": {
 		"@swc/core": "1.11.24"
 	},
@@ -19,13 +37,79 @@
 		"@types/compression": "^1.8.1",
 		"@types/express": "^4.17.25",
 		"@types/node-fetch": "^2.6.13",
+		"concurrently": "^8.2.2",
+		"electron": "^35.7.5",
+		"electron-builder": "^25.1.8",
 		"prettier": "^3.7.4",
-		"typescript": "^5.9.3"
+		"typescript": "^5.9.3",
+		"wait-on": "^7.2.0"
 	},
 	"prettier": {
 		"useTabs": true,
 		"printWidth": 100,
 		"semi": true,
 		"bracketSpacing": false
+	},
+	"overrides": {
+		"glob": "^10.4.5",
+		"rimraf": "^5.0.10",
+		"tar": "^7.4.3",
+		"boolean": "^3.2.0"
+	},
+	"build": {
+		"appId": "com.fermi.client",
+		"productName": "Fermi",
+		"copyright": "Copyright © 2024 Fermi Contributors",
+		"directories": {
+			"output": "release",
+			"buildResources": "assets"
+		},
+		"files": [
+			"dist/**/*",
+			"dist-electron/**/*",
+			"!node_modules/**/*",
+			"node_modules/@swc/**/*"
+		],
+		"extraResources": [
+			{
+				"from": "dist/webpage",
+				"to": "webpage"
+			}
+		],
+		"win": {
+			"target": [
+				{
+					"target": "nsis",
+					"arch": ["x64"]
+				},
+				{
+					"target": "portable",
+					"arch": ["x64"]
+				}
+			],
+			"artifactName": "${productName}-${version}-${arch}.${ext}"
+		},
+		"nsis": {
+			"oneClick": false,
+			"perMachine": false,
+			"allowToChangeInstallationDirectory": true,
+			"deleteAppDataOnUninstall": false,
+			"createDesktopShortcut": true,
+			"createStartMenuShortcut": true,
+			"shortcutName": "Fermi"
+		},
+		"portable": {
+			"artifactName": "${productName}-${version}-portable.${ext}"
+		},
+		"mac": {
+			"target": ["dmg", "zip"],
+			"icon": "assets/icon.icns",
+			"category": "public.app-category.social-networking"
+		},
+		"linux": {
+			"target": ["AppImage", "deb"],
+			"icon": "assets/icons",
+			"category": "Network;InstantMessaging"
+		}
 	}
 }

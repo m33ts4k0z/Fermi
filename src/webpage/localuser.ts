@@ -28,6 +28,7 @@ import {VoiceFactory, voiceStatusStr} from "./voice.js";
 import {I18n, langmap} from "./i18n.js";
 import {Emoji} from "./emoji.js";
 import {Play} from "./audio/play.js";
+import {showScreenPicker} from "./utils/electronBridge.js";
 import {Message} from "./message.js";
 import {badgeArr} from "./Dbadges.js";
 import {Rights} from "./rights.js";
@@ -1079,11 +1080,27 @@ class Localuser {
 		screenShare.onclick = async () => {
 			if (channel.voice?.isLive()) {
 				channel.voice.stopStream();
+				updateStreamIcon();
 			} else {
-				const stream = await navigator.mediaDevices.getDisplayMedia();
-				await channel.voice?.createLive(stream);
+				try {
+					console.log("Starting screen share...");
+					const stream = await showScreenPicker();
+					if (!stream) {
+						console.log("Screen share cancelled by user");
+						return;
+					}
+					console.log("Got stream, creating live...", stream);
+					if (!channel.voice) {
+						console.error("No voice connection available");
+						return;
+					}
+					await channel.voice.createLive(stream);
+					console.log("Live stream created successfully");
+					updateStreamIcon();
+				} catch (error) {
+					console.error("Screen share failed:", error);
+				}
 			}
-			updateStreamIcon();
 		};
 
 		const video = document.createElement("div");

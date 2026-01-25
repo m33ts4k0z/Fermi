@@ -154,9 +154,12 @@ class VoiceFactory {
 	islive = false;
 	liveStream?: MediaStream;
 	async createLive(stream: MediaStream) {
+		console.log("createLive called with stream:", stream);
+		console.log("Stream tracks:", stream.getTracks());
 		const userid = this.settings.id;
 		this.islive = true;
 		this.liveStream = stream;
+		console.log("liveStream saved, userid:", userid);
 		const stream_key = `${this.curGuild === "@me" ? "call" : `guild:${this.curGuild}`}:${this.curChan}:${userid}`;
 		this.handleGateway({
 			op: 18,
@@ -192,22 +195,36 @@ class VoiceFactory {
 		return voice;
 	}
 	async streamCreate(create: streamCreate) {
+		console.log("streamCreate called with:", create.d.stream_key);
 		const prom1 = this.steamTokens.get(create.d.stream_key);
-		if (!prom1) throw new Error("oops");
+		if (!prom1) {
+			console.error("No promise found for stream_key:", create.d.stream_key);
+			console.error("Available keys:", [...this.steamTokens.keys()]);
+			throw new Error("oops");
+		}
 		const [token, endpoint] = await prom1;
+		console.log("Got token and endpoint:", endpoint);
 		if (create.d.stream_key.startsWith("guild")) {
 			const [_, _guild, chan, user] = create.d.stream_key.split(":");
+			console.log("Parsed stream key - chan:", chan, "user:", user);
 			const voice2 = this.voiceChannels.get(chan);
 
-			if (!voice2 || !voice2.session_id) throw new Error("oops");
+			if (!voice2 || !voice2.session_id) {
+				console.error("voice2 missing or no session_id", voice2);
+				throw new Error("oops");
+			}
 			if (voice2.voiceMap.has(user)) {
+				console.log("voiceMap already has user, making op12");
 				voice2.makeOp12();
 				return;
 			}
 			let stream: undefined | MediaStream = undefined;
-			console.error(user, this.settings.id);
+			console.log("Checking user match - user:", user, "settings.id:", this.settings.id);
 			if (user === this.settings.id) {
 				stream = this.liveStream;
+				console.log("Stream set to liveStream:", stream);
+			} else {
+				console.log("User mismatch, stream is undefined (watching someone else's stream)");
 			}
 			const voice = new Voice(
 				this.settings.id,
@@ -225,11 +242,13 @@ class VoiceFactory {
 			voice.startWS(voice2.session_id, create.d.rtc_server_id);
 			let video = false;
 			voice.onSatusChange = (e) => {
-				console.warn(e);
+				console.log("Stream voice status changed:", e, "stream:", !!stream, "video started:", video);
 				if (e === "done" && stream && !video) {
-					console.error("starting to stream");
+					console.log("Starting video stream NOW!");
 					voice.startVideo(stream);
 					video = true;
+				} else if (e === "done") {
+					console.warn("Status is done but conditions not met - stream:", stream, "video:", video);
 				}
 			};
 
@@ -949,13 +968,18 @@ a=rtcp-mux\r`;
 		this.voiceMap.set(user, voice);
 	}
 	videoStarted = false;
+	streamAudioSender?: RTCRtpSender;
+
 	async startVideo(caml: MediaStream) {
 		while (!this.cam) {
 			await new Promise((res) => setTimeout(res, 100));
 		}
 		console.warn("test test test test video sent!");
-		const tracks = caml.getVideoTracks();
-		const [cam] = tracks;
+		const videoTracks = caml.getVideoTracks();
+		const audioTracks = caml.getAudioTracks();
+		const [cam] = videoTracks;
+
+		console.log("Stream has", videoTracks.length, "video tracks and", audioTracks.length, "audio tracks");
 
 		if (!this.settings.stream) this.owner.video = true;
 
@@ -973,6 +997,32 @@ a=rtcp-mux\r`;
 
 		await sender.replaceTrack(cam);
 		sender.setStreams(caml);
+
+		// Also send audio tracks if present (for screen share with system audio)
+		if (audioTracks.length > 0 && this.pc) {
+			const [audioTrack] = audioTracks;
+			console.log("Adding stream audio track:", audioTrack.label);
+			
+			// Find an inactive audio transceiver to use, or add a new one
+			const transceivers = this.pc.getTransceivers();
+			let audioTransceiver = transceivers.find(t => 
+				t.sender.track === null && 
+				t.receiver.track?.kind === 'audio' &&
+				t.direction === 'inactive'
+			);
+			
+			if (audioTransceiver) {
+				console.log("Using existing audio transceiver for stream audio");
+				audioTransceiver.direction = "sendonly";
+				await audioTransceiver.sender.replaceTrack(audioTrack);
+				this.streamAudioSender = audioTransceiver.sender;
+				this.senders.add(audioTransceiver.sender);
+			} else {
+				console.log("Adding new audio track to PC");
+				this.streamAudioSender = this.pc.addTrack(audioTrack, caml);
+				this.senders.add(this.streamAudioSender);
+			}
+		}
 
 		this.forceNext = true;
 

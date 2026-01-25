@@ -28,6 +28,7 @@ import {File} from "./file.js";
 import {Sticker} from "./sticker.js";
 import {CustomHTMLDivElement} from "./index.js";
 import {Direct} from "./direct.js";
+import {showScreenPicker} from "./utils/electronBridge.js";
 import {ProgessiveDecodeJSON} from "./utils/progessiveLoad.js";
 import {NotificationHandler} from "./notificationHandler.js";
 import {Command} from "./interactions/commands.js";
@@ -1379,7 +1380,54 @@ class Channel extends SnowFlake {
 					this.voice?.leaveLive(id);
 				}
 			};
-			box.append(live, leave);
+			
+			// Add volume slider for received streams (not for own stream)
+			if (!self) {
+				const volumeContainer = document.createElement("div");
+				volumeContainer.className = "stream-volume-container";
+				
+				const volumeIcon = document.createElement("span");
+				volumeIcon.className = "svg-volume stream-volume-icon";
+				
+				const volumeSlider = document.createElement("input");
+				volumeSlider.type = "range";
+				volumeSlider.min = "0";
+				volumeSlider.max = "100";
+				volumeSlider.value = String(Math.round(live.volume * 100));
+				volumeSlider.className = "stream-volume-slider";
+				
+				volumeSlider.oninput = () => {
+					const vol = parseInt(volumeSlider.value) / 100;
+					live.volume = vol;
+					// Update icon based on volume
+					if (vol === 0) {
+						volumeIcon.className = "svg-mute stream-volume-icon";
+					} else {
+						volumeIcon.className = "svg-volume stream-volume-icon";
+					}
+				};
+				
+				// Click icon to mute/unmute
+				let previousVolume = live.volume || 1;
+				volumeIcon.onclick = (e) => {
+					e.stopImmediatePropagation();
+					if (live.volume > 0) {
+						previousVolume = live.volume;
+						live.volume = 0;
+						volumeSlider.value = "0";
+						volumeIcon.className = "svg-mute stream-volume-icon";
+					} else {
+						live.volume = previousVolume;
+						volumeSlider.value = String(Math.round(previousVolume * 100));
+						volumeIcon.className = "svg-volume stream-volume-icon";
+					}
+				};
+				
+				volumeContainer.append(volumeIcon, volumeSlider);
+				box.append(live, volumeContainer, leave);
+			} else {
+				box.append(live, leave);
+			}
 		} else if (!self) {
 			const joinB = document.createElement("button");
 			joinB.textContent = I18n.vc.joinstream();
@@ -1578,15 +1626,29 @@ class Channel extends SnowFlake {
 		live.append(lspan);
 		updateLiveIcon();
 		live.onclick = async () => {
-			if (!this.voice?.open) return;
+			if (!this.voice?.open) {
+				console.log("Voice not open, cannot start screen share");
+				return;
+			}
 			if (this.voice?.isLive()) {
 				this.voice?.stopStream();
+				updateLiveIcon();
 			} else {
-				const stream = await navigator.mediaDevices.getDisplayMedia();
-				const v = await this.voice?.createLive(stream);
-				console.log(v);
+				try {
+					console.log("Starting screen share...");
+					const stream = await showScreenPicker();
+					if (!stream) {
+						console.log("Screen share cancelled by user");
+						return;
+					}
+					console.log("Got stream, creating live...", stream);
+					const v = await this.voice?.createLive(stream);
+					console.log("Live stream created:", v);
+					updateLiveIcon();
+				} catch (error) {
+					console.error("Screen share failed:", error);
+				}
 			}
-			updateLiveIcon();
 		};
 		live.classList.add("callVoiceIcon");
 

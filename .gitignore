@@ -142,3 +142,4 @@ package-lock.json
 pnpm-lock.yaml
 build.js
 dependency-graph.svg
+release/

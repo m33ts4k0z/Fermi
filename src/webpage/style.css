@@ -396,6 +396,78 @@ body {
 	background: color-mix(in srgb, var(--red) 85%, white);
 }
 
+/* Stream volume control */
+.stream-volume-container {
+	position: absolute;
+	bottom: 10px;
+	left: 10px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background: rgba(0, 0, 0, 0.7);
+	padding: 4px 8px;
+	border-radius: 4px;
+	opacity: 0;
+	transition: opacity 0.2s;
+	z-index: 10;
+}
+
+.voiceUsers > :hover .stream-volume-container {
+	opacity: 1;
+}
+
+.stream-volume-icon {
+	width: 18px;
+	height: 18px;
+	cursor: pointer;
+	opacity: 0.8;
+	transition: opacity 0.1s;
+	background-color: var(--primary-text);
+}
+
+.stream-volume-icon:hover {
+	opacity: 1;
+}
+
+.svg-volume {
+	mask: url(./icons/soundMore.svg);
+	mask-size: contain !important;
+}
+
+.svg-mute {
+	mask: url(./icons/micmute.svg);
+	mask-size: contain !important;
+}
+
+.stream-volume-slider {
+	width: 80px;
+	height: 4px;
+	-webkit-appearance: none;
+	appearance: none;
+	background: var(--secondary-bg);
+	border-radius: 2px;
+	cursor: pointer;
+}
+
+.stream-volume-slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	background: var(--primary-text);
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.stream-volume-slider::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	background: var(--primary-text);
+	border-radius: 50%;
+	cursor: pointer;
+	border: none;
+}
+
 .voiceUsers > * {
 	background: var(--accent_color, var(--primary-bg));
 	border-radius: 8px;
