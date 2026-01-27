@@ -143,3 +143,7 @@ pnpm-lock.yaml
 build.js
 dependency-graph.svg
 release/
+
+# Merge upstream scripts (personal helper scripts)
+scripts/merge-upstream.sh
+scripts/merge-upstream.ps1
