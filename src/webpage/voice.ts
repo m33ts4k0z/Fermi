@@ -16,6 +16,10 @@ class VoiceFactory {
 	settings: {id: string};
 	handleGateway: (obj: Object) => void;
 	secure: boolean;
+	streamSettings: {resolution: {width: number; height: number}; bitrate: number} = {
+		resolution: {width: 1280, height: 720},
+		bitrate: 3000000, // 3 Mbps default
+	};
 	constructor(
 		usersettings: VoiceFactory["settings"],
 		handleGateway: VoiceFactory["handleGateway"],
@@ -229,8 +233,9 @@ class VoiceFactory {
 			const voice = new Voice(
 				this.settings.id,
 				{
-					bitrate: 10000,
+					bitrate: this.streamSettings.bitrate,
 					stream: true,
+					resolution: this.streamSettings.resolution,
 				},
 				{
 					url: endpoint,
@@ -325,7 +330,7 @@ class Voice {
 		return this.pstatus;
 	}
 	readonly userid: string;
-	settings: {bitrate: number; stream?: boolean; live?: MediaStream};
+	settings: {bitrate: number; stream?: boolean; live?: MediaStream; resolution?: {width: number; height: number}};
 	urlobj: {url?: string; token?: string; geturl?: Promise<void>; gotUrl?: () => void};
 	owner: VoiceFactory;
 	constructor(
@@ -761,8 +766,9 @@ a=rtcp-mux\r`;
 		}
 
 		let max_framerate = 20;
-		let width = 1280;
-		let height = 720;
+		let width = this.settings.resolution?.width || 1280;
+		let height = this.settings.resolution?.height || 720;
+		const bitrate = this.settings.bitrate || 2500000;
 		const {rtx_ssrc, video_ssrc} = await this.getCamInfo();
 		if (this.cam && this.cammera) {
 		} else if (!sender) {
@@ -786,7 +792,7 @@ a=rtcp-mux\r`;
 								active: !!video_ssrc,
 								quality: 100,
 								rtx_ssrc: rtx_ssrc,
-								max_bitrate: 2500000, //TODO
+								max_bitrate: bitrate,
 								max_framerate, //TODO
 								max_resolution: {type: "fixed", width, height},
 							},
@@ -1088,11 +1094,12 @@ a=rtcp-mux\r`;
 				sendEncodings: [{active: true, maxBitrate: this.settings.bitrate}],
 			});
 		}
+		const bitrate = this.settings.bitrate || 2500000;
 		this.cam = pc.addTransceiver("video", {
 			direction: "sendonly",
 			streams: [],
 			sendEncodings: [
-				{active: true, maxBitrate: 2500000, scaleResolutionDownBy: 1, maxFramerate: 20},
+				{active: true, maxBitrate: bitrate, scaleResolutionDownBy: 1, maxFramerate: 20},
 			],
 		});
 		const count = this.settings.stream ? 1 : 10;
@@ -1108,7 +1115,7 @@ a=rtcp-mux\r`;
 				direction: "sendonly",
 				streams: [],
 				sendEncodings: [
-					{active: true, maxBitrate: 2500000, scaleResolutionDownBy: 1, maxFramerate: 20},
+					{active: true, maxBitrate: bitrate, scaleResolutionDownBy: 1, maxFramerate: 20},
 				],
 			});
 			await this.startVideo(this.settings.live);

@@ -1342,20 +1342,40 @@ class Channel extends SnowFlake {
 		const box = this.boxMap.get(id);
 		if (!box) return;
 		console.log("vid", elm);
+		// Prevent video clicks from triggering makeBig
+		elm.onclick = (e) => {
+			e.stopPropagation();
+			e.stopImmediatePropagation();
+		};
+		elm.onmousedown = (e) => {
+			e.stopPropagation();
+			e.stopImmediatePropagation();
+		};
+		elm.style.pointerEvents = "auto";
+		elm.style.cursor = "default";
 		box.append(elm);
 	}
 	makeBig(box: HTMLElement) {
 		const par = box.parentElement;
 		if (!par) return;
-		if (par.children[0] !== box || !box.classList.contains("bigBox")) {
-			box.classList.add("bigBox");
-			if (par.children[0] !== box) {
-				par.children[0].classList.remove("bigBox");
+		
+		// Check if this box is already big
+		const isCurrentlyBig = box.classList.contains("bigBox");
+		
+		// Remove bigBox from all children and remove any spacer elements
+		Array.from(par.children).forEach((child) => {
+			(child as HTMLElement).classList.remove("bigBox");
+			if ((child as HTMLElement).classList.contains("bigBox-spacer")) {
+				child.remove();
 			}
-		} else {
-			par.children[0].classList.remove("bigBox");
+		});
+		
+		if (!isCurrentlyBig) {
+			// Make this box big
+			box.classList.add("bigBox");
+			// Move to beginning so it appears first
+			par.insertBefore(box, par.firstChild);
 		}
-		par.prepend(box);
 	}
 	decorateLive(id: string) {
 		if (!this.voice) return;
@@ -1380,6 +1400,10 @@ class Channel extends SnowFlake {
 					this.voice?.leaveLive(id);
 				}
 			};
+			
+			// Add controls container
+			const controlsContainer = document.createElement("div");
+			controlsContainer.className = "stream-controls-container";
 			
 			// Add volume slider for received streams (not for own stream)
 			if (!self) {
@@ -1424,9 +1448,167 @@ class Channel extends SnowFlake {
 				};
 				
 				volumeContainer.append(volumeIcon, volumeSlider);
-				box.append(live, volumeContainer, leave);
+				
+				// Add focus/pin button
+				const focusButton = document.createElement("button");
+				focusButton.className = "stream-focus-button";
+				focusButton.title = "Focus/Pin Stream";
+				const focusIcon = document.createElement("span");
+				focusIcon.className = "svgicon svg-pin";
+				focusButton.append(focusIcon);
+				focusButton.onclick = (e) => {
+					e.stopImmediatePropagation();
+					this.makeBig(box);
+				};
+				
+				// Add fullscreen button
+				const fullscreenButton = document.createElement("button");
+				fullscreenButton.className = "stream-fullscreen-button";
+				fullscreenButton.title = "Fullscreen";
+				const fullscreenIcon = document.createElement("span");
+				fullscreenIcon.className = "svgicon svg-fullscreen";
+				fullscreenButton.append(fullscreenIcon);
+				fullscreenButton.onclick = async (e) => {
+					e.stopImmediatePropagation();
+					const video = box.querySelector("video");
+					if (video) {
+						try {
+							if (video.requestFullscreen) {
+								await video.requestFullscreen();
+							} else if ((video as any).webkitRequestFullscreen) {
+								await (video as any).webkitRequestFullscreen();
+							} else if ((video as any).mozRequestFullScreen) {
+								await (video as any).mozRequestFullScreen();
+							} else if ((video as any).msRequestFullscreen) {
+								await (video as any).msRequestFullscreen();
+							}
+						} catch (err) {
+							console.error("Failed to enter fullscreen:", err);
+						}
+					}
+				};
+				
+				controlsContainer.append(volumeContainer, focusButton, fullscreenButton);
+				box.append(live, controlsContainer, leave);
 			} else {
-				box.append(live, leave);
+				// For streamer: add resolution and bitrate settings
+				const settingsContainer = document.createElement("div");
+				settingsContainer.className = "stream-settings-container";
+				
+				// Resolution selector
+				const resolutionLabel = document.createElement("label");
+				resolutionLabel.textContent = "Resolution: ";
+				const resolutionSelect = document.createElement("select");
+				resolutionSelect.className = "stream-resolution-select";
+				const resolutions = [
+					{label: "720p", width: 1280, height: 720},
+					{label: "1080p", width: 1920, height: 1080},
+					{label: "1440p", width: 2560, height: 1440},
+					{label: "2160p", width: 3840, height: 2160},
+				];
+				resolutions.forEach((res) => {
+					const option = document.createElement("option");
+					option.value = `${res.width}x${res.height}`;
+					option.textContent = res.label;
+					if (res.width === 1280 && res.height === 720) option.selected = true;
+					resolutionSelect.append(option);
+				});
+				
+				// Bitrate selector
+				const bitrateLabel = document.createElement("label");
+				bitrateLabel.textContent = "Bitrate: ";
+				const bitrateSelect = document.createElement("select");
+				bitrateSelect.className = "stream-bitrate-select";
+				const bitrates = [
+					{label: "1 Mbps", value: 1000000},
+					{label: "3 Mbps", value: 3000000},
+					{label: "5 Mbps", value: 5000000},
+					{label: "8 Mbps", value: 8000000},
+					{label: "10 Mbps", value: 10000000},
+				];
+				bitrates.forEach((br) => {
+					const option = document.createElement("option");
+					option.value = String(br.value);
+					option.textContent = br.label;
+					if (br.value === 3000000) option.selected = true;
+					bitrateSelect.append(option);
+				});
+				
+				// Prevent clicks on settings from triggering makeBig
+				settingsContainer.onclick = (e) => {
+					e.stopPropagation();
+				};
+				resolutionSelect.onclick = (e) => {
+					e.stopPropagation();
+				};
+				bitrateSelect.onclick = (e) => {
+					e.stopPropagation();
+				};
+				resolutionLabel.onclick = (e) => {
+					e.stopPropagation();
+				};
+				bitrateLabel.onclick = (e) => {
+					e.stopPropagation();
+				};
+				
+				// Update settings when changed
+				resolutionSelect.onchange = () => {
+					const [width, height] = resolutionSelect.value.split("x").map(Number);
+					if (this.localuser.voiceFactory) {
+						this.localuser.voiceFactory.streamSettings.resolution = {width, height};
+						if (this.localuser.voiceFactory.currentVoice) {
+							this.localuser.voiceFactory.currentVoice.settings.resolution = {width, height};
+							// Update stream if active
+							if (this.localuser.voiceFactory.currentVoice.settings.stream) {
+								this.localuser.voiceFactory.currentVoice.makeOp12();
+							}
+						}
+					}
+				};
+				
+				bitrateSelect.onchange = () => {
+					const bitrate = parseInt(bitrateSelect.value);
+					if (this.localuser.voiceFactory) {
+						this.localuser.voiceFactory.streamSettings.bitrate = bitrate;
+						if (this.localuser.voiceFactory.currentVoice) {
+							this.localuser.voiceFactory.currentVoice.settings.bitrate = bitrate;
+							// Update stream if active
+							if (this.localuser.voiceFactory.currentVoice.settings.stream) {
+								this.localuser.voiceFactory.currentVoice.makeOp12();
+							}
+						}
+					}
+				};
+				
+				// Add fullscreen button for streamer
+				const fullscreenButton = document.createElement("button");
+				fullscreenButton.className = "stream-fullscreen-button";
+				fullscreenButton.title = "Fullscreen";
+				const fullscreenIcon = document.createElement("span");
+				fullscreenIcon.className = "svgicon svg-fullscreen";
+				fullscreenButton.append(fullscreenIcon);
+				fullscreenButton.onclick = async (e) => {
+					e.stopPropagation();
+					const video = box.querySelector("video");
+					if (video) {
+						try {
+							if (video.requestFullscreen) {
+								await video.requestFullscreen();
+							} else if ((video as any).webkitRequestFullscreen) {
+								await (video as any).webkitRequestFullscreen();
+							} else if ((video as any).mozRequestFullScreen) {
+								await (video as any).mozRequestFullScreen();
+							} else if ((video as any).msRequestFullscreen) {
+								await (video as any).msRequestFullscreen();
+							}
+						} catch (err) {
+							console.error("Failed to enter fullscreen:", err);
+						}
+					}
+				};
+				
+				settingsContainer.append(resolutionLabel, resolutionSelect, bitrateLabel, bitrateSelect, fullscreenButton);
+				box.append(live, settingsContainer, leave);
 			}
 		} else if (!self) {
 			const joinB = document.createElement("button");
@@ -1510,7 +1692,22 @@ class Channel extends SnowFlake {
 	async makeUserBox(user: User, users: HTMLElement) {
 		const memb = Member.resolveMember(user, this.guild);
 		const box = document.createElement("div");
-		box.onclick = () => {
+		box.onclick = (e) => {
+			// Don't trigger makeBig if clicking on video, controls, or settings
+			const target = e.target as HTMLElement;
+			// Check if clicking on a spacer
+			if (target.classList.contains("bigBox-spacer")) {
+				return;
+			}
+			if (target.tagName === "VIDEO" || 
+				target.closest(".stream-controls-container") ||
+				target.closest(".stream-settings-container") ||
+				target.closest(".stream-volume-container") ||
+				target.closest("button") ||
+				target.closest("select") ||
+				target.closest("input")) {
+				return;
+			}
 			this.makeBig(box);
 		};
 		this.boxMap.set(user.id, box);
