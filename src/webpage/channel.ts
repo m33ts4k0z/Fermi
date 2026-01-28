@@ -1501,6 +1501,9 @@ class Channel extends SnowFlake {
 				const resolutionSelect = document.createElement("select");
 				resolutionSelect.className = "stream-resolution-select";
 				const resolutions = [
+					{label: "240p", width: 426, height: 240},
+					{label: "360p", width: 640, height: 360},
+					{label: "480p", width: 854, height: 480},
 					{label: "720p", width: 1280, height: 720},
 					{label: "1080p", width: 1920, height: 1080},
 					{label: "1440p", width: 2560, height: 1440},
@@ -1520,6 +1523,9 @@ class Channel extends SnowFlake {
 				const bitrateSelect = document.createElement("select");
 				bitrateSelect.className = "stream-bitrate-select";
 				const bitrates = [
+					{label: "100 kbps", value: 100000},
+					{label: "250 kbps", value: 250000},
+					{label: "500 kbps", value: 500000},
 					{label: "1 Mbps", value: 1000000},
 					{label: "3 Mbps", value: 3000000},
 					{label: "5 Mbps", value: 5000000},
