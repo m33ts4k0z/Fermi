@@ -28,7 +28,7 @@ import {VoiceFactory, voiceStatusStr} from "./voice.js";
 import {I18n, langmap} from "./i18n.js";
 import {Emoji} from "./emoji.js";
 import {Play} from "./audio/play.js";
-import {showScreenPicker} from "./utils/electronBridge.js";
+import {resolutionToQuality, showScreenPicker} from "./utils/electronBridge.js";
 import {Message} from "./message.js";
 import {badgeArr} from "./Dbadges.js";
 import {Rights} from "./rights.js";
@@ -45,6 +45,10 @@ import {
 } from "./utils/storage/userPreferences";
 import {getDeveloperSettings, setDeveloperSettings} from "./utils/storage/devSettings";
 import {getLocalSettings, ServiceWorkerModeValues} from "./utils/storage/localSettings.js";
+
+/** Set to ingest URL to enable debug logging; leave empty to avoid ERR_CONNECTION_REFUSED in console. */
+const DEBUG_INGEST_URL = "";
+
 type traceObj = {
 	micros: number;
 	calls?: (string | traceObj)[];
@@ -1085,26 +1089,62 @@ class Localuser {
 		screenShare.append(screenShareIcon);
 
 		screenShare.onclick = async () => {
+			// #region agent log
+			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-onclick-entry',message:'Stream button clicked (entry)',data:{hasChannel:!!channel,hasVoice:!!channel?.voice,voiceOpen:channel?.voice?.open,isLive:channel?.voice?.isLive()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H43'})}).catch(()=>{});
+			// #endregion
 			if (channel.voice?.isLive()) {
 				channel.voice.stopStream();
 				updateStreamIcon();
 			} else {
 				try {
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-onclick',message:'Stream button clicked in DM',data:{hasChannel:!!channel,hasVoice:!!channel?.voice},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					console.log("Starting screen share...");
-					const stream = await showScreenPicker();
+					const quality = resolutionToQuality(this.voiceFactory?.streamSettings?.resolution);
+					const stream = await showScreenPicker(quality);
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-afterPicker',message:'showScreenPicker returned',data:{hasStream:!!stream,trackCount:stream?.getTracks().length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					if (!stream) {
+						// #region agent log
+						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-cancelled',message:'Screen share cancelled',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+						// #endregion
 						console.log("Screen share cancelled by user");
 						return;
 					}
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-gotStream',message:'Got stream from picker',data:{hasStream:!!stream,trackCount:stream?.getTracks().length,hasChannelVoice:!!channel?.voice},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					console.log("Got stream, creating live...", stream);
 					if (!channel.voice) {
+						// #region agent log
+						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-noVoice',message:'No voice connection available',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+						// #endregion
 						console.error("No voice connection available");
 						return;
 					}
-					await channel.voice.createLive(stream);
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-beforeCreateLive',message:'About to call createLive',data:{hasVoice:!!channel.voice},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
+					const streamVoice = await channel.voice.createLive(stream);
+					// Transcode at streamer: apply selected resolution/bitrate to encoder so mediasoup receives already-encoded stream.
+					if (streamVoice && this.voiceFactory?.streamSettings) {
+						streamVoice.settings.resolution = this.voiceFactory.streamSettings.resolution;
+						streamVoice.settings.bitrate = this.voiceFactory.streamSettings.bitrate;
+						await streamVoice.applyStreamEncodingParams();
+						streamVoice.makeOp12();
+					}
+					if (channel) (channel as { streamVoice?: unknown }).streamVoice = streamVoice;
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-afterCreateLive',message:'createLive completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					console.log("Live stream created successfully");
 					updateStreamIcon();
 				} catch (error) {
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'localuser.ts:stream-error',message:'Screen share failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					console.error("Screen share failed:", error);
 				}
 			}
@@ -1194,7 +1234,8 @@ class Localuser {
 		json.guild_id ??= "@me";
 		const guild = this.guildids.get(json.guild_id);
 		if (!guild) return;
-		if (guild.channels.find((_) => _.id === json.id)) return;
+		const existing = guild.channels.find((_) => _.id === json.id);
+		if (existing) return existing;
 		const channel = guild.createChannelpac(json);
 		if (json.guild_id === this.lookingguild?.id) {
 			this.loadGuild(json.guild_id, true);

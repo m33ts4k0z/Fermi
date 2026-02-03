@@ -26,6 +26,29 @@ export interface CustomHTMLDivElement extends HTMLDivElement {
 	markdown: MarkDown;
 }
 if (window.location.pathname.startsWith("/channels")) {
+	// Minimal stream viewer toggle (dev): 1 audio + 1 video transceiver for viewers. Must be set before joining voice.
+	declare global {
+		interface Window {
+			__minimalStreamViewer?: boolean;
+		}
+	}
+	if (typeof (window as Window & { __minimalStreamViewer?: boolean }).__minimalStreamViewer !== "boolean") {
+		(window as Window & { __minimalStreamViewer?: boolean }).__minimalStreamViewer = false;
+	}
+	const minimalStreamBtn = document.createElement("button");
+	minimalStreamBtn.id = "minimal-stream-toggle";
+	minimalStreamBtn.type = "button";
+	minimalStreamBtn.textContent = "Minimal stream OFF";
+	minimalStreamBtn.style.cssText =
+		"position:fixed;bottom:24px;right:24px;z-index:999999;padding:8px 12px;font-size:12px;border-radius:6px;background:#4b458c;color:#fff;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);";
+	minimalStreamBtn.onclick = () => {
+		const w = window as Window & { __minimalStreamViewer?: boolean };
+		w.__minimalStreamViewer = !w.__minimalStreamViewer;
+		minimalStreamBtn.textContent = w.__minimalStreamViewer ? "Minimal stream ON" : "Minimal stream OFF";
+		minimalStreamBtn.style.background = w.__minimalStreamViewer ? "#2e7d32" : "#4b458c";
+	};
+	document.body.appendChild(minimalStreamBtn);
+
 	let templateID = new URLSearchParams(window.location.search).get("templateID");
 	await I18n.done;
 	Localuser.loadFont();

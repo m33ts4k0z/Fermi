@@ -624,10 +624,13 @@ body {
 		height: 60px;
 		cursor: unset;
 	}
+	/* Video always fills container; encoded resolution only affects quality (scaled to fit, aspect ratio preserved). */
 	video {
 		position: absolute;
-		flex-grow: 1;
-		flex-shrink: 1;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
 	}
 }
 /* When there's a focused box, reorganize the layout */

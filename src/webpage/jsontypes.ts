@@ -1203,6 +1203,10 @@ type opRTC12 = {
 		user_id: string;
 		audio_ssrc: number;
 		video_ssrc: number;
+		rtx_ssrc?: number;
+		video_pt?: number;
+		rtx_pt?: number;
+		audio_pt?: number;
 		streams: [
 			{
 				type: "video";

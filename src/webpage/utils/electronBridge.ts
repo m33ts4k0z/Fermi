@@ -17,9 +17,24 @@ export interface ScreenSource {
 }
 
 /**
- * Video quality presets for screen sharing
+ * Video quality presets for screen sharing (transcode at streamer: capture + encode at these).
  */
 export const VideoQualityPresets = {
+    '240p': {
+        width: { ideal: 426, max: 426 },
+        height: { ideal: 240, max: 240 },
+        frameRate: { ideal: 30, max: 30 }
+    },
+    '360p': {
+        width: { ideal: 640, max: 640 },
+        height: { ideal: 360, max: 360 },
+        frameRate: { ideal: 30, max: 30 }
+    },
+    '480p': {
+        width: { ideal: 854, max: 854 },
+        height: { ideal: 480, max: 480 },
+        frameRate: { ideal: 30, max: 30 }
+    },
     '720p': {
         width: { ideal: 1280, max: 1280 },
         height: { ideal: 720, max: 720 },
@@ -30,14 +45,32 @@ export const VideoQualityPresets = {
         height: { ideal: 1080, max: 1080 },
         frameRate: { ideal: 30, max: 60 }
     },
-    '480p': {
-        width: { ideal: 854, max: 854 },
-        height: { ideal: 480, max: 480 },
-        frameRate: { ideal: 30, max: 30 }
+    '1440p': {
+        width: { ideal: 2560, max: 2560 },
+        height: { ideal: 1440, max: 1440 },
+        frameRate: { ideal: 30, max: 60 }
+    },
+    '2160p': {
+        width: { ideal: 3840, max: 3840 },
+        height: { ideal: 2160, max: 2160 },
+        frameRate: { ideal: 30, max: 60 }
     }
 } as const;
 
 export type VideoQuality = keyof typeof VideoQualityPresets;
+
+/** Map resolution (width x height) to closest VideoQuality for getDisplayMedia constraints. */
+export function resolutionToQuality(resolution?: { width: number; height: number }): VideoQuality {
+    if (!resolution?.height) return '720p';
+    const h = resolution.height;
+    if (h <= 240) return '240p';
+    if (h <= 360) return '360p';
+    if (h <= 480) return '480p';
+    if (h <= 720) return '720p';
+    if (h <= 1080) return '1080p';
+    if (h <= 1440) return '1440p';
+    return '2160p';
+}
 
 /**
  * Check if we're running in Electron
@@ -173,46 +206,29 @@ export async function captureScreen(
  * Show a screen picker UI
  * In Electron: Returns sources for custom UI
  * In Web: Triggers browser's built-in picker via getDisplayMedia
+ * @param quality - Capture resolution/quality (transcode at streamer: getDisplayMedia uses this).
  */
-export async function showScreenPicker(): Promise<MediaStream | null> {
-    console.log('[ScreenPicker] isElectron:', isElectron());
-    
+export async function showScreenPicker(quality?: VideoQuality): Promise<MediaStream | null> {
+    const q = quality ?? '720p';
+    console.log('[ScreenPicker] isElectron:', isElectron(), 'quality:', q);
+
     if (isElectron()) {
-        // Get sources for custom picker UI
-        console.log('[ScreenPicker] Getting screen sources...');
         const sources = await getScreenSources();
-        console.log('[ScreenPicker] Got sources:', sources.length);
-        
         if (sources.length === 0) {
             console.warn('[ScreenPicker] No sources available');
             return null;
         }
-        
-        // Show custom picker modal (implemented in UI layer)
-        console.log('[ScreenPicker] Showing picker modal...');
         const selectedSource = await showElectronScreenPicker(sources);
-        
-        if (!selectedSource) {
-            console.log('[ScreenPicker] User cancelled picker');
-            return null;
-        }
-        
-        console.log('[ScreenPicker] Selected source:', selectedSource.id, selectedSource.name);
-        
+        if (!selectedSource) return null;
         try {
-            const stream = await captureScreen(selectedSource.id, '720p', true);
-            console.log('[ScreenPicker] Capture successful, stream:', stream);
-            console.log('[ScreenPicker] Stream tracks:', stream?.getTracks());
-            return stream;
+            return await captureScreen(selectedSource.id, q, true);
         } catch (error) {
             console.error('[ScreenPicker] Capture failed:', error);
             throw error;
         }
     }
 
-    // Web fallback - browser handles picker
-    console.log('[ScreenPicker] Using web fallback (getDisplayMedia)');
-    return await captureScreen(undefined, '720p', true);
+    return await captureScreen(undefined, q, true);
 }
 
 /**

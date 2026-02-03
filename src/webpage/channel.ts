@@ -28,7 +28,10 @@ import {File} from "./file.js";
 import {Sticker} from "./sticker.js";
 import {CustomHTMLDivElement} from "./index.js";
 import {Direct} from "./direct.js";
-import {showScreenPicker} from "./utils/electronBridge.js";
+
+/** Set to ingest URL to enable debug logging; leave empty to avoid ERR_CONNECTION_REFUSED in console. */
+const DEBUG_INGEST_URL = "";
+import {resolutionToQuality, showScreenPicker} from "./utils/electronBridge.js";
 import {ProgessiveDecodeJSON} from "./utils/progessiveLoad.js";
 import {NotificationHandler} from "./notificationHandler.js";
 import {Command} from "./interactions/commands.js";
@@ -1326,6 +1329,8 @@ class Channel extends SnowFlake {
 	}
 	boxMap = new Map<string, HTMLElement>();
 	liveMap = new Map<string, HTMLElement>();
+	/** Voice instance that has the active stream track (from createLive). Use this for resolution/bitrate so applyStreamEncodingParams finds the sender. */
+	streamVoice?: Voice;
 	destUserBox(user: User) {
 		const box = this.boxMap.get(user.id);
 		if (!box) return;
@@ -1378,13 +1383,32 @@ class Channel extends SnowFlake {
 		}
 	}
 	decorateLive(id: string) {
+		// #region agent log
+		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:decorateLive-entry',message:'decorateLive called',data:{id,hasVoice:!!this.voice,hasBox:this.liveMap.has(id),liveMapKeys:[...this.liveMap.keys()]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+		// #endregion
 		if (!this.voice) return;
 		const box = this.liveMap.get(id);
-		if (!box) return;
+		if (!box) {
+			// #region agent log
+			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:decorateLive-noBox',message:'decorateLive: no box in liveMap for id',data:{id,liveMapKeys:[...this.liveMap.keys()]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
+			// #endregion
+			return;
+		}
+		
+		// Preserve existing video element if it exists (to prevent AbortError on video.play())
+		const existingVideo = box.querySelector('video');
 		box.innerHTML = "";
+		
 		const live = this.voice.getLive(id);
+		// #region agent log
+		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:decorateLive-getLive',message:'decorateLive: got live element',data:{id,hasLive:!!live,liveTagName:live?.tagName,liveVideoWidth:live?.videoWidth,liveVideoHeight:live?.videoHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
+		// #endregion
 		const self = id === this.localuser.user.id;
-		if (!this.voice.open) {
+		// Use currentVoice?.open so we show "Watch stream" when user is in VC even if this.voice is a different instance (e.g. channel re-created after join).
+		const factory = this.localuser.voiceFactory;
+		// Check if we are connected to voice: either via currentVoice.open, this channel's voice.open, or if we have a current channel set in the factory.
+		const inVc = (factory?.currentVoice?.open) || (this.voice.open) || (!!factory?.curChan);
+		if (!inVc) {
 			const span = document.createElement("span");
 			span.textContent = I18n.vc.joinForStream();
 			box.append(span);
@@ -1395,6 +1419,7 @@ class Channel extends SnowFlake {
 			leave.onclick = (e) => {
 				e.stopImmediatePropagation();
 				if (self) {
+					this.streamVoice = undefined;
 					this.voice?.stopStream();
 				} else {
 					this.voice?.leaveLive(id);
@@ -1490,6 +1515,9 @@ class Channel extends SnowFlake {
 				
 				controlsContainer.append(volumeContainer, focusButton, fullscreenButton);
 				box.append(live, controlsContainer, leave);
+				// #region agent log
+				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:decorateLive-videoAppended',message:'Video appended to box (viewer)',data:{id,boxInDOM:!!box.parentElement,liveVideoWidth:live.videoWidth,liveVideoHeight:live.videoHeight,liveReadyState:live.readyState,livePaused:live.paused,liveCurrentTime:live.currentTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
+				// #endregion
 			} else {
 				// For streamer: add resolution and bitrate settings
 				const settingsContainer = document.createElement("div");
@@ -1557,33 +1585,38 @@ class Channel extends SnowFlake {
 					e.stopPropagation();
 				};
 				
-				// Update settings when changed
-				resolutionSelect.onchange = () => {
+				// Update settings when changed — apply on the fly to current stream (no restart).
+				// Use this.voice (channel's voice) since we're the streamer in this channel.
+				resolutionSelect.onchange = async () => {
 					const [width, height] = resolutionSelect.value.split("x").map(Number);
-					if (this.localuser.voiceFactory) {
-						this.localuser.voiceFactory.streamSettings.resolution = {width, height};
-						if (this.localuser.voiceFactory.currentVoice) {
-							this.localuser.voiceFactory.currentVoice.settings.resolution = {width, height};
-							// Update stream if active
-							if (this.localuser.voiceFactory.currentVoice.settings.stream) {
-								this.localuser.voiceFactory.currentVoice.makeOp12();
-							}
-						}
+					console.log("[Stream] Resolution changed to", width, "x", height);
+					const factory = this.localuser.voiceFactory;
+					if (factory) factory.streamSettings.resolution = {width, height};
+					const voice = this.streamVoice ?? this.voice ?? factory?.currentVoice;
+					if (!voice) {
+						console.warn("[Stream] No voice — resolution not applied");
+						return;
 					}
+					voice.settings.resolution = {width, height};
+					const applied = await voice.applyStreamEncodingParams();
+					if (applied) voice.makeOp12();
+					else console.warn("[Stream] applyStreamEncodingParams returned false");
 				};
 				
-				bitrateSelect.onchange = () => {
+				bitrateSelect.onchange = async () => {
 					const bitrate = parseInt(bitrateSelect.value);
-					if (this.localuser.voiceFactory) {
-						this.localuser.voiceFactory.streamSettings.bitrate = bitrate;
-						if (this.localuser.voiceFactory.currentVoice) {
-							this.localuser.voiceFactory.currentVoice.settings.bitrate = bitrate;
-							// Update stream if active
-							if (this.localuser.voiceFactory.currentVoice.settings.stream) {
-								this.localuser.voiceFactory.currentVoice.makeOp12();
-							}
-						}
+					console.log("[Stream] Bitrate changed to", bitrate);
+					const factory = this.localuser.voiceFactory;
+					if (factory) factory.streamSettings.bitrate = bitrate;
+					const voice = this.streamVoice ?? this.voice ?? factory?.currentVoice;
+					if (!voice) {
+						console.warn("[Stream] No voice — bitrate not applied");
+						return;
 					}
+					voice.settings.bitrate = bitrate;
+					const applied = await voice.applyStreamEncodingParams();
+					if (applied) voice.makeOp12();
+					else console.warn("[Stream] applyStreamEncodingParams returned false");
 				};
 				
 				// Add fullscreen button for streamer
@@ -1627,7 +1660,7 @@ class Channel extends SnowFlake {
 				const span = document.createElement("span");
 				span.textContent = I18n.vc.joiningStream();
 				box.append(span);
-				this.voice.joinLive(id);
+				this.voice.joinLive(id, this.guild.id, this.id);
 			};
 		}
 	}
@@ -1800,7 +1833,8 @@ class Channel extends SnowFlake {
 		updateVideoIcon();
 		video.onclick = async () => {
 			if (!this.voice) return;
-			if (!this.voice.open) return;
+			const inVcForAction = this.localuser.currentVoice?.open ?? this.voice.open;
+			if (!inVcForAction) return;
 			if (this.localuser.voiceFactory?.video) {
 				this.voice.stopVideo();
 			} else {
@@ -1829,26 +1863,66 @@ class Channel extends SnowFlake {
 		live.append(lspan);
 		updateLiveIcon();
 		live.onclick = async () => {
+			// #region agent log
+			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-onclick-entry',message:'Live button clicked (entry)',data:{hasVoice:!!this.voice,voiceOpen:this.voice?.open,voiceIsLive:this.voice?.isLive()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H43'})}).catch(()=>{});
+			// #endregion
 			if (!this.voice?.open) {
+				// #region agent log
+				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-voiceNotOpen',message:'Voice not open - early return',data:{hasVoice:!!this.voice,voiceOpen:this.voice?.open},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H43'})}).catch(()=>{});
+				// #endregion
 				console.log("Voice not open, cannot start screen share");
 				return;
 			}
+			// #region agent log
+			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-voiceOpen',message:'Voice is open, continuing',data:{isLive:this.voice?.isLive()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H43'})}).catch(()=>{});
+			// #endregion
 			if (this.voice?.isLive()) {
+				this.streamVoice = undefined;
 				this.voice?.stopStream();
 				updateLiveIcon();
 			} else {
 				try {
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-onclick',message:'Live button clicked - starting screen share',data:{hasVoice:!!this.voice,islive:this.voice?.islive},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					console.log("Starting screen share...");
-					const stream = await showScreenPicker();
+					const quality = resolutionToQuality(this.localuser.voiceFactory?.streamSettings?.resolution);
+					const stream = await showScreenPicker(quality);
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-afterPicker',message:'showScreenPicker returned',data:{hasStream:!!stream,trackCount:stream?.getTracks().length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					if (!stream) {
+						// #region agent log
+						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-cancelled',message:'Screen share cancelled by user',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+						// #endregion
 						console.log("Screen share cancelled by user");
 						return;
 					}
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-beforeCreateLive',message:'About to call createLive',data:{hasStream:!!stream,trackCount:stream?.getTracks().length,hasVoice:!!this.voice},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					console.log("Got stream, creating live...", stream);
 					const v = await this.voice?.createLive(stream);
+					this.streamVoice = v;
+					// Transcode at streamer: apply selected resolution/bitrate to encoder (RTCRtpSender) so mediasoup receives already-encoded stream.
+					if (v) {
+						const factory = this.localuser.voiceFactory;
+						if (factory?.streamSettings) {
+							v.settings.resolution = factory.streamSettings.resolution;
+							v.settings.bitrate = factory.streamSettings.bitrate;
+						}
+						await v.applyStreamEncodingParams();
+						v.makeOp12();
+					}
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-afterCreateLive',message:'createLive returned',data:{hasVoice:!!v},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					console.log("Live stream created:", v);
 					updateLiveIcon();
 				} catch (error) {
+					// #region agent log
+					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'channel.ts:live-error',message:'Screen share failed with error',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
+					// #endregion
 					console.error("Screen share failed:", error);
 				}
 			}
@@ -1896,6 +1970,7 @@ class Channel extends SnowFlake {
 			console.warn("happened");
 			this.boxVid(id, vid);
 			updateVideoIcon();
+			this.decorateLive(id);
 		};
 		this.voice.onGotStream = (_vid, id) => {
 			this.localuser.regenVoiceIcons();
@@ -1904,7 +1979,7 @@ class Channel extends SnowFlake {
 		};
 		this.voice.onconnect = () => {
 			if (!this.voice) return;
-			for (const [_, user] of this.voice.users) {
+			for (const [user] of this.voice.userids) {
 				this.decorateLive(user);
 			}
 		};

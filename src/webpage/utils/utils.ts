@@ -289,8 +289,17 @@ class Directory {
 	}
 	static async createHome(): Promise<Directory> {
 		navigator.storage.persist();
-		const home = new Directory(await navigator.storage.getDirectory());
-		return home;
+		try {
+			const handle = await navigator.storage.getDirectory();
+			return new Directory(handle);
+		} catch (e) {
+			// InvalidStateError: storage was evicted or state changed; retry once
+			if (e instanceof DOMException && e.name === "InvalidStateError") {
+				const handle = await navigator.storage.getDirectory();
+				return new Directory(handle);
+			}
+			throw e;
+		}
 	}
 	async *getAllInDir() {
 		for await (const [name, handle] of this.handle.entries()) {
