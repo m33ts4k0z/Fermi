@@ -28,14 +28,11 @@ import {File} from "./file.js";
 import {Sticker} from "./sticker.js";
 import {CustomHTMLDivElement} from "./index.js";
 import {Direct} from "./direct.js";
-<<<<<<< HEAD
 
 /** Set to ingest URL to enable debug logging; leave empty to avoid ERR_CONNECTION_REFUSED in console. */
 const DEBUG_INGEST_URL = "";
 import {resolutionToQuality, showScreenPicker} from "./utils/electronBridge.js";
 import {ProgessiveDecodeJSON} from "./utils/progessiveLoad.js";
-=======
->>>>>>> upstream/main
 import {NotificationHandler} from "./notificationHandler.js";
 import {Command} from "./interactions/commands.js";
 
@@ -3247,13 +3244,8 @@ class Channel extends SnowFlake {
 		if (!this.hasPermission("VIEW_CHANNEL")) {
 			return;
 		}
-<<<<<<< HEAD
-		// Skip if we already processed this message (e.g. from XHR response before gateway)
-		if (this.messages.has(messagep.d.id)) {
-=======
 		if (this.messages.get(messagep.d.id)) {
 			console.error("Duped message?");
->>>>>>> upstream/main
 			return;
 		}
 		this.nonces.add(messagep.d.nonce);
@@ -3289,22 +3281,6 @@ class Channel extends SnowFlake {
 
 		if (this.infinite.atBottom()) {
 			this.lastreadmessageid = messagez.id;
-<<<<<<< HEAD
-			this.mentions = 0;
-			this.unreads();
-			this.guild.unreads();
-			if (next) {
-				next.generateMessage();
-			}
-			if (this == this.localuser.channelfocus) {
-				if (!this.infinitefocus) {
-					await this.tryfocusinfinate();
-				}
-				await this.infinite.addedBottom();
-				await this.goToBottom();
-			}
-=======
->>>>>>> upstream/main
 		}
 
 		this.unreads();
