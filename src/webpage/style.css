@@ -2464,6 +2464,14 @@ span.instanceStatus {
 .messagediv {
 	position: relative;
 }
+.messagediv:not(.topMessage):hover::after {
+	content: var(--time-text);
+	position: absolute;
+	color: #ffffffb8;
+	left: 2px;
+	top: 5px;
+	font-size: 12px;
+}
 .messagediv:hover {
 	background: var(--primary-hover);
 }
@@ -2565,22 +2573,10 @@ span.instanceStatus {
 	word-break: break-word;
 	gap: 4px;
 	width: 100%;
-	max-height: 1000px;
 	overflow: clip;
 	position: relative;
 }
-.commentrow::after {
-	content: "View rest";
-	position: absolute;
-	top: 960px;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	background: var(--secondary-bg);
-	padding: 10px;
-	border-radius: 4px;
-	text-align: center;
-	cursor: pointer;
-}
+
 .commentrow:hover::after {
 	background: var(--secondary-hover);
 }

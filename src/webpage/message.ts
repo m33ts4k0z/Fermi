@@ -539,9 +539,9 @@ class Message extends SnowFlake {
 		const next = this.channel.idToNext.get(this.id);
 
 		this.channel.messages.delete(this.id);
-		if (prev && next) {
-			this.channel.idToPrev.set(next, prev);
-			this.channel.idToNext.set(prev, next);
+		if (this.channel.idToPrev.has(this.id) && this.channel.idToNext.has(this.id)) {
+			if (next) this.channel.idToPrev.set(next, prev);
+			if (prev) this.channel.idToNext.set(prev, next);
 		} else if (prev) {
 			this.channel.idToNext.delete(prev);
 		} else if (next) {
@@ -616,6 +616,12 @@ class Message extends SnowFlake {
 		) {
 			div.classList.add("mentioned");
 		}
+		div.style.setProperty(
+			"--time-text",
+			JSON.stringify(
+				new Date(this.getUnixTime()).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}),
+			),
+		);
 
 		if (this === this.channel.replyingto) {
 			div.classList.add("replying");
@@ -674,14 +680,10 @@ class Message extends SnowFlake {
 					div.append(span);
 					span.classList.add("blocked");
 					span.onclick = (_) => {
-						const scroll = this.channel.infinite.scrollTop;
 						let next: Message | undefined = this;
 						while (next?.author === this.author) {
 							next.generateMessage();
 							next = this.channel.messages.get(this.channel.idToNext.get(next.id) as string);
-						}
-						if (this.channel.infinite.scollDiv && scroll) {
-							this.channel.infinite.scollDiv.scrollTop = scroll;
 						}
 					};
 				}
@@ -704,7 +706,6 @@ class Message extends SnowFlake {
 					span.textContent = I18n.showBlockedMessages(count + "");
 					build.append(span);
 					span.onclick = (_) => {
-						const scroll = this.channel.infinite.scrollTop;
 						const func = this.channel.infinite.snapBottom();
 						let next: Message | undefined = this;
 						while (next?.author === this.author) {
@@ -712,10 +713,7 @@ class Message extends SnowFlake {
 							next = this.channel.messages.get(this.channel.idToNext.get(next.id) as string);
 							console.log("loopy");
 						}
-						if (this.channel.infinite.scollDiv && scroll) {
-							func();
-							this.channel.infinite.scollDiv.scrollTop = scroll;
-						}
+						func();
 					};
 					div.appendChild(build);
 					return div;
@@ -779,7 +777,7 @@ class Message extends SnowFlake {
 			reply.onclick = (_) => {
 				if (!this.message_reference) return;
 				// TODO: FIX this
-				this.channel.infinite.focus(this.message_reference.message_id);
+				this.channel.focus(this.message_reference.message_id);
 			};
 			div.appendChild(replyline);
 		}
@@ -917,14 +915,15 @@ class Message extends SnowFlake {
 				if (!this.embeds.find((_) => _.json.url === messaged.textContent)) {
 					messagedwrap.classList.add("flexttb");
 					messagedwrap.appendChild(messaged);
-				}
-				text.onclick = () => {
-					if (text.getBoundingClientRect().height > 950) {
-						const pop = new Dialog(I18n.message.fullMessage());
-						pop.float.options.addMDText(this.content);
-						pop.show();
+					if (!combine && this.edited_timestamp) {
+						const edit = document.createElement("span");
+						edit.classList.add("timestamp");
+						edit.textContent = I18n.message.edited();
+						const hover = new Hover(new Date(this.edited_timestamp).toString());
+						hover.addEvent(edit);
+						messagedwrap.append(edit);
 					}
-				};
+				}
 			}
 			text.appendChild(messagedwrap);
 			build.appendChild(text);
