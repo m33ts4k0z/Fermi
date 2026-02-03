@@ -1,6 +1,6 @@
 import {InstanceInfo, adduser, Specialuser} from "./utils/utils.js";
 import {I18n} from "./i18n.js";
-import {Dialog, FormError} from "./settings.js";
+import {Dialog, FormError, CheckboxInput} from "./settings.js";
 import {makeRegister} from "./register.js";
 import {trimTrailingSlashes} from "./utils/netUtils";
 
@@ -103,9 +103,16 @@ export async function makeLogin(
 					window.location.href = "/channels/@me";
 				}
 			} else {
-				//@ts-ignore
-				//TODO just type this to get rid of the ignore :P
-				const message = res.errors.at(0)._errors[0].message;
+				let message = "Unknown error";
+				if (res.errors && typeof res.errors === 'object' && !Array.isArray(res.errors)) {
+					const firstKey = Object.keys(res.errors)[0];
+					if (firstKey && res.errors[firstKey]._errors && res.errors[firstKey]._errors[0]) {
+						message = res.errors[firstKey]._errors[0].message;
+					}
+				}
+				if (message === "Unknown error" && res.message) {
+					message = res.message;
+				}
 				throw new FormError(password, message);
 			}
 		},
@@ -122,8 +129,34 @@ export async function makeLogin(
 	picker.giveButton(button);
 	button?.classList.add("createAccount");
 
-	const email = form.addTextInput(I18n.htmlPages.emailField(), "login");
-	const password = form.addTextInput(I18n.htmlPages.pwField(), "password", {password: true});
+	let rememberMe: CheckboxInput | undefined; // Declare variable for checkbox
+
+	// Modify the onSubmit handler (we can't easily change the callback passed to addForm above without rewriting it entirely)
+	// So we hook into the form's submit flow by wrapping the onSubmit function
+	const originalOnSubmit = form.onSubmit;
+	form.watchForChange(async (res, sent) => {
+		// Save/Clear credentials logic
+		if (rememberMe && rememberMe.value) {
+			localStorage.setItem("savedEmail", email.value);
+			localStorage.setItem("savedPassword", password.value);
+		} else {
+			localStorage.removeItem("savedEmail");
+			localStorage.removeItem("savedPassword");
+		}
+		// Call original handler
+		// @ts-ignore
+		await originalOnSubmit(res, sent);
+	});
+
+	const savedEmail = localStorage.getItem("savedEmail") || "";
+	const savedPassword = localStorage.getItem("savedPassword") || "";
+
+	const email = form.addTextInput(I18n.htmlPages.emailField(), "login", {initText: savedEmail});
+	const password = form.addTextInput(I18n.htmlPages.pwField(), "password", {password: true, initText: savedPassword});
+	rememberMe = form.addCheckboxInput("Remember me", "rememberMe", {initState: !!savedEmail});
+	form.addPreprocessor((data: any) => {
+		delete data.rememberMe;
+	});
 	form.addCaptcha();
 	const a = document.createElement("a");
 	a.onclick = () => {

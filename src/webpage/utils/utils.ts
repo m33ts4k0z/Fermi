@@ -529,6 +529,9 @@ export async function getApiUrlsV1(str: string): Promise<InstanceUrls | null> {
 					}
 				}
 			} else if (!str.match(/^https?:\/\//gm)) {
+				if (!/:\d+$/.test(str)) {
+					str = str + ":3001";
+				}
 				str = "https://" + str;
 			}
 		}

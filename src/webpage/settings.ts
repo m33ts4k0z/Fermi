@@ -158,6 +158,19 @@ class TextInput implements OptionsElement<string> {
 		input.value = this.value;
 		input.type = this.password ? "password" : "text";
 		input.oninput = this.onChange.bind(this);
+		input.onkeydown = (e) => {
+			if (e.key === "Enter") {
+				let parent: any = this.owner;
+				while (parent) {
+					// Check for Form instance by duck typing or constructor name if available
+					if (parent.constructor.name === "Form") {
+						parent.submit();
+						break;
+					}
+					parent = parent.owner;
+				}
+			}
+		};
 		this.input = new WeakRef(input);
 		div.append(input);
 		return div;
