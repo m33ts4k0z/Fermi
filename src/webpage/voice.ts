@@ -343,6 +343,35 @@ class VoiceFactory {
 			voiceForChannel.voiceupdate(update);
 		}
 	}
+	/**
+	 * Sync voice state from READY_SUPPLEMENTAL so reconnecting clients don't see ghost users
+	 * (users who left while we were disconnected never send VOICE_STATE_UPDATE to us).
+	 */
+	syncVoiceStateFromSupplemental(guilds: Array<{ voice_states: Array<{ user_id: string; channel_id: string | null }> }>) {
+		const channelToUserIds = new Map<string, Set<string>>();
+		for (const g of guilds) {
+			for (const vs of g.voice_states) {
+				if (vs.channel_id) {
+					let set = channelToUserIds.get(vs.channel_id);
+					if (!set) {
+						set = new Set();
+						channelToUserIds.set(vs.channel_id, set);
+					}
+					set.add(vs.user_id);
+				}
+			}
+		}
+		for (const [channelId, voice] of this.voiceChannels) {
+			const expectedIds = channelToUserIds.get(channelId) ?? new Set<string>();
+			for (const userId of [...voice.userids.keys()]) {
+				if (userId === this.settings.id) continue;
+				if (!expectedIds.has(userId)) {
+					voice.disconnect(userId);
+					this.userMap.delete(userId);
+				}
+			}
+		}
+	}
 	private setUpGuild(id: string) {
 		const obj: {url?: string; geturl?: Promise<void>; gotUrl?: () => void} = {};
 		obj.geturl = new Promise<void>((res) => {

@@ -870,6 +870,9 @@ class Localuser {
 				}
 				case "READY_SUPPLEMENTAL":
 					{
+						if (this.voiceFactory) {
+							this.voiceFactory.syncVoiceStateFromSupplemental(temp.d.guilds);
+						}
 						temp.d.guilds.forEach((_) =>
 							_.voice_states.forEach((status) => {
 								if (this.voiceFactory && status.channel_id) {
