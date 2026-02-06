@@ -564,28 +564,14 @@ class Voice {
 						break;
 					}
 
-					// For non-stream-viewer connections (regular voice, streamers), use original flow
+					// For non-stream-viewer connections (regular voice, streamers), process op12 immediately (reverted deferred op12).
 					console.log("[voice] op12 (regular voice): user_id=" + json.d.user_id,
 						"audio_ssrc=" + json.d.audio_ssrc,
 						"video_ssrc=" + json.d.video_ssrc,
 						"signalingState=" + this.pc?.signalingState,
 						"users.size=" + this.users.size,
-						"vidusers.size=" + this.vidusers.size,
-						"_initialSdpComplete=" + this._initialSdpComplete);
+						"vidusers.size=" + this.vidusers.size);
 
-					// CRITICAL FIX: Defer op12 processing until the initial SDP exchange is done.
-					// When Client B joins and Client A is already in the room, the server sends
-					// op12 BEFORE op4 (answer). If we add transceivers now, it triggers
-					// negotiationneeded which replaces the initial offer via setLocalDescription.
-					// This creates a complex interleaving where the first updateRemote uses the
-					// initial offer (without the recvonly transceiver), and the renegotiation with
-					// the new offer may fail or get stuck.
-					// Solution: Queue the op12 and process it after the initial exchange completes.
-					if (!this._initialSdpComplete) {
-						console.log("[voice] op12: deferring — initial SDP exchange not yet complete");
-						this._pendingOp12s.push(json);
-						break;
-					}
 					await this._processOp12(json);
 					break;
 			}
@@ -657,8 +643,7 @@ class Voice {
 		}
 	}
 	/**
-	 * Process an op12 message: update SSRC maps and add transceivers.
-	 * This is called when _initialSdpComplete is true (normal flow after initial exchange).
+	 * Process an op12 message: update SSRC maps and add transceivers (immediate, no deferral).
 	 */
 	async _processOp12(json: any) {
 		await this.figureRecivers();
@@ -1112,10 +1097,6 @@ a=rtcp-mux\r`;
 	hasReceivedProducerOp12: boolean = false;
 	/** Prevents concurrent updateRemote() so we never setRemoteDescription twice. */
 	private _updateRemoteInProgress: boolean = false;
-	/** True after the first successful setRemoteDescription (initial SDP exchange done). */
-	private _initialSdpComplete: boolean = false;
-	/** Op12 messages that arrived before the initial SDP exchange completed. */
-	private _pendingOp12s: any[] = [];
 	/** Extract a=mid values in SDP order (one per m= section). */
 	private static getMidOrder(sdp: string): string[] {
 		const mids: string[] = [];
@@ -1203,24 +1184,6 @@ a=rtcp-mux\r`;
 			try {
 				await this.pc.setRemoteDescription(remote);
 				console.log("[voice] setRemoteDescription done, new signalingState=" + this.pc.signalingState);
-				// Mark initial SDP exchange as complete and process any deferred op12s.
-				// This ensures transceivers are added from a "stable" state, leading to
-				// clean renegotiation cycles (same as what Client A experiences).
-				if (!this._initialSdpComplete) {
-					this._initialSdpComplete = true;
-					console.log("[voice] initial SDP exchange complete, processing " + this._pendingOp12s.length + " deferred op12(s)");
-					const pending = this._pendingOp12s.splice(0);
-					// Process all deferred op12s SYNCHRONOUSLY (just maps + transceivers).
-					// Don't await _processOp12 in a loop because its 500ms figureRecivers
-					// delay would cause renegotiation to interleave badly.
-					// After all transceivers are added, negotiationneeded fires ONCE and
-					// handles the renegotiation cleanly.
-					for (const pendingJson of pending) {
-						console.log("[voice] replaying deferred op12 for user=" + pendingJson.d.user_id,
-							"audio_ssrc=" + pendingJson.d.audio_ssrc, "video_ssrc=" + pendingJson.d.video_ssrc);
-						this._processOp12Sync(pendingJson);
-					}
-				}
 			} catch (err) {
 				const errMsg = err instanceof Error ? err.message : String(err);
 				console.error("[voice] setRemoteDescription failed:", errMsg, err);
@@ -1903,8 +1866,6 @@ a=rtcp-mux\r`;
 		this.status = "makingOffer";
 		// Reset all signaling state for this new connection so we never use stale data
 		// from a previous connection (avoids second client hanging or using wrong answer).
-		this._initialSdpComplete = false;
-		this._pendingOp12s = [];
 		this.counter = undefined;
 		this.offer = undefined;
 		this.off = undefined;
