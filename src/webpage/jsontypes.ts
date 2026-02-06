@@ -817,6 +817,7 @@ type wsjson =
 			s: number;
 			t:
 				| "TYPING_START"
+				| "TYPING_STOP"
 				| "USER_UPDATE"
 				| "CHANNEL_UPDATE"
 				| "CHANNEL_CREATE"

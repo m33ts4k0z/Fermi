@@ -2221,6 +2221,7 @@ class Channel extends SnowFlake {
 		//loading.classList.remove("loading");
 	}
 	typingmap: Map<Member, number> = new Map();
+	typingExpiryInterval: ReturnType<typeof setInterval> | null = null;
 	async typingStart(typing: startTypingjson): Promise<void> {
 		const memb = await Member.new(typing.d.member!, this.guild);
 		if (!memb) return;
@@ -2233,14 +2234,25 @@ class Channel extends SnowFlake {
 		}
 		this.typingmap.set(memb, Date.now());
 		memb.user.statusChange();
-		setTimeout(() => {
-			this.rendertyping();
-			memb.user.statusChange();
-		}, 10000);
+		// Run expiry check every 2s so indicator disappears ~5s after last TYPING_START on other clients
+		if (!this.typingExpiryInterval) {
+			this.typingExpiryInterval = setInterval(() => this.rendertyping(), 2000);
+		}
 		if (memb.id === this.localuser.user.id) {
 			return;
 		}
 		console.log("user is typing and you should see it");
+		this.rendertyping();
+	}
+	/** Remove a user from the typing map (e.g. on TYPING_STOP from server). */
+	typingStop(user_id: string): void {
+		for (const [memb] of this.typingmap) {
+			if (memb.id === user_id) {
+				this.typingmap.delete(memb);
+				memb.user.statusChange();
+				break;
+			}
+		}
 		this.rendertyping();
 	}
 	similar(str: string) {
@@ -2276,7 +2288,12 @@ class Channel extends SnowFlake {
 				}
 			} else {
 				this.typingmap.delete(thing);
+				thing.user.statusChange();
 			}
+		}
+		if (this.typingmap.size === 0 && this.typingExpiryInterval) {
+			clearInterval(this.typingExpiryInterval);
+			this.typingExpiryInterval = null;
 		}
 		build = I18n.typing(i + "", build);
 		if (this.localuser.channelfocus === this) {
@@ -2724,7 +2741,7 @@ class Channel extends SnowFlake {
 			headers: this.headers,
 		});
 	}
-	/** Remove the local user from the typing map and refresh UI. Call when a message is sent or when the user clears the textbox. Resets the typing throttle so the next keystroke can POST /typing again. */
+	/** Remove the local user from the typing map and refresh UI. Call when a message is sent or when the user clears the textbox. Resets the typing throttle so the next keystroke can POST /typing again. Notifies the server so other clients clear the indicator immediately. */
 	clearLocalTyping(): void {
 		for (const [memb] of this.typingmap) {
 			if (memb.id === this.localuser.user.id) {
@@ -2733,6 +2750,11 @@ class Channel extends SnowFlake {
 			}
 		}
 		this.typing = 0;
+		// Notify server so other clients receive TYPING_STOP and clear the indicator immediately
+		fetch(this.info.api + "/channels/" + this.id + "/typing", {
+			method: "DELETE",
+			headers: this.headers,
+		}).catch(() => {});
 		this.rendertyping();
 		this.localuser.user.statusChange();
 	}
@@ -3261,7 +3283,9 @@ class Channel extends SnowFlake {
 		}
 		const messagez = new Message(messagep.d, this);
 		Member.resolveMember(messagez.author, this.guild).then((_) => {
-			this.typingmap.delete(_ as Member);
+			const memb = _ as Member;
+			this.typingmap.delete(memb);
+			memb.user.statusChange(); // refresh list typing indicator
 			this.rendertyping();
 		});
 		this.lastmessage = messagez;

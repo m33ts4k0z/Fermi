@@ -748,6 +748,11 @@ class Localuser {
 						this.typingStart(temp);
 					}
 					break;
+				case "TYPING_STOP":
+					if (this.initialized) {
+						this.typingStop(temp);
+					}
+					break;
 				case "USER_UPDATE":
 					if (this.initialized) {
 						const users = this.userMap.get(temp.d.id);
@@ -2298,6 +2303,11 @@ class Localuser {
 		const channel = this.channelids.get(typing.d.channel_id);
 		if (!channel) return;
 		channel.typingStart(typing);
+	}
+	typingStop(typing: { d: { channel_id: string; user_id: string } }): void {
+		const channel = this.channelids.get(typing.d.channel_id);
+		if (!channel) return;
+		channel.typingStop(typing.d.user_id);
 	}
 	updatepfp(file: Blob): void {
 		const reader = new FileReader();
