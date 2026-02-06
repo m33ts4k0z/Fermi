@@ -160,6 +160,7 @@
 		"gatewayComp": "Disable Gateway compression",
 		"reportSystem":"Enable experimental reporting system",
 		"logGateway": "Log received gateway events (log level info):",
+		"logPresenceDebug": "Log presence and member list updates (for debugging online/offline):",
 		"name": "Developer Settings",
 		"traces": "Expose traces:"
 	},

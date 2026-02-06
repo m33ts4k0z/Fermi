@@ -43,6 +43,7 @@ import {
 	ThemeOption,
 } from "./utils/storage/userPreferences";
 import {getDeveloperSettings, setDeveloperSettings} from "./utils/storage/devSettings";
+import {presenceLog} from "./utils/PresenceDebug.js";
 import {getLocalSettings, ServiceWorkerModeValues} from "./utils/storage/localSettings.js";
 
 /** Set to ingest URL to enable debug logging; leave empty to avoid ERR_CONNECTION_REFUSED in console. */
@@ -960,10 +961,27 @@ class Localuser {
 				}
 				case "PRESENCE_UPDATE": {
 					if (temp.d.user) {
-						const user = new User(temp.d.user, this);
+						presenceLog("PRESENCE_UPDATE ingress", "user_id", temp.d.user.id, "status", temp.d.status, "inUserMap", this.userMap.has(temp.d.user.id));
 						this.presences.set(temp.d.user.id, temp.d);
+						let user = this.userMap.get(temp.d.user.id);
+						if (!user) {
+							user = new User(temp.d.user, this);
+							this.userMap.set(temp.d.user.id, user);
+						}
 						user.setstatus(temp.d.status);
+						const canonicalUser = this.userMap.get(temp.d.user.id);
+						if (canonicalUser) {
+							for (const g of this.guildids.values()) {
+								for (const m of g.members) {
+									if (m instanceof Member && m.id === temp.d.user.id && m.user !== canonicalUser) {
+										m.user = canonicalUser;
+										break;
+									}
+								}
+							}
+						}
 						if (user === this.user) this.loaduser();
+						this.memberListQue();
 					}
 					break;
 				}
@@ -1291,7 +1309,11 @@ class Localuser {
 			const counts = new Map<string, number>();
 			for (const thing of list.d.ops[0].items) {
 				if ("member" in thing) {
-					await Member.new(thing.member, guild);
+					presenceLog("GUILD_MEMBER_LIST_UPDATE item", "user_id", (thing as { member: { user?: { id?: string }; presence?: { status?: string } } }).member.user?.id, "presence_status", (thing as { member: { presence?: { status?: string } } }).member.presence?.status);
+					const memb = await Member.new(thing.member, guild);
+					if (memb && thing.member.presence) {
+						memb.getPresence(thing.member.presence);
+					}
 				} else {
 					counts.set(thing.group.id, thing.group.count);
 				}
@@ -1307,6 +1329,10 @@ class Localuser {
 		elms.set("online", []);
 		elms.set("offline", []);
 		let members = new Set<User | Member>(guild.members);
+		for (const m of guild.members) {
+			const u = m instanceof Member ? m.user : m;
+			presenceLog("memberListUpdate building list", "member_id", m.id, "user_id", u?.id, "getStatus", u?.getStatus?.());
+		}
 		if (channel instanceof Group) {
 			members = new Set(channel.users);
 			members.add(this.user);
@@ -3433,6 +3459,15 @@ class Localuser {
 				settings.reportSystem = e;
 				setDeveloperSettings(settings);
 				SW.traceInit();
+			};
+
+			const box8 = devSettings.addCheckboxInput(I18n.devSettings.logPresenceDebug(), () => {}, {
+				initState: getDeveloperSettings().logPresenceDebug,
+			});
+			box8.onchange = (e) => {
+				const settings = getDeveloperSettings();
+				settings.logPresenceDebug = e;
+				setDeveloperSettings(settings);
 			};
 
 			devSettings.addButtonInput("", I18n.devSettings.clearWellKnowns(), async () => {

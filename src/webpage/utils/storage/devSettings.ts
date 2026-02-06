@@ -6,6 +6,7 @@ export class DeveloperSettings {
 	cacheSourceMaps: boolean = false;
 	logBannedFields: boolean = false;
 	reportSystem = false;
+	logPresenceDebug: boolean = false;
 
 	constructor(data: Partial<DeveloperSettings> = {}) {
 		Object.assign(this, data);

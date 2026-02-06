@@ -22,6 +22,7 @@ class Member extends SnowFlake {
 			this.user = this.localuser.userMap.get(memberjson.id) as User;
 		} else if (memberjson.user) {
 			this.user = new User(memberjson.user, owner.localuser);
+			this.localuser.userMap.set(memberjson.id, this.user);
 		} else {
 			throw new Error("Missing user object of this member");
 		}
@@ -386,6 +387,7 @@ class Member extends SnowFlake {
 			user = owner.localuser.userMap.get(memberjson.id) as User;
 		} else if (memberjson.user) {
 			user = new User(memberjson.user, owner.localuser);
+			owner.localuser.userMap.set(memberjson.id, user);
 		} else {
 			throw new Error("missing user object of this member");
 		}
