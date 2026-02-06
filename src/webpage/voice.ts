@@ -170,17 +170,11 @@ class VoiceFactory {
 	islive = false;
 	liveStream?: MediaStream;
 	async createLive(stream: MediaStream) {
-		// #region agent log
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:createLive',message:'createLive called',data:{hasStream:!!stream,trackCount:stream?.getTracks().length,userid:this.settings.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
-		// #endregion
 		console.log("createLive called with stream:", stream);
 		console.log("Stream tracks:", stream.getTracks());
 		const userid = this.settings.id;
 		this.islive = true;
 		this.liveStream = stream;
-		// #region agent log
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:createLive-saved',message:'liveStream saved to this.liveStream',data:{islive:this.islive,hasLiveStream:!!this.liveStream,liveStreamTracks:this.liveStream?.getTracks().length,userid},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H40'})}).catch(()=>{});
-		// #endregion
 		console.log("liveStream saved, userid:", userid);
 		const stream_key = `${this.curGuild === "@me" ? "call" : `guild:${this.curGuild}`}:${this.curChan}:${userid}`;
 		this.handleGateway({
@@ -246,20 +240,11 @@ class VoiceFactory {
 			}
 			let stream: undefined | MediaStream = undefined;
 			const isStreamViewer = user !== this.settings.id;
-			// #region agent log
-			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:streamServerCreate',message:'streamServerCreate handler running',data:{user,settingsId:this.settings.id,isStreamViewer,hasLiveStream:!!this.liveStream,liveStreamTracks:this.liveStream?.getTracks().length,islive:this.islive},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H41'})}).catch(()=>{});
-			// #endregion
 			console.log("Checking user match - user:", user, "settings.id:", this.settings.id, "isStreamViewer:", isStreamViewer);
 			if (user === this.settings.id) {
 				stream = this.liveStream;
-				// #region agent log
-				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:streamServerCreate-setStream',message:'Stream set from liveStream',data:{hasStream:!!stream,streamTracks:stream?.getTracks().length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H41'})}).catch(()=>{});
-				// #endregion
 				console.log("Stream set to liveStream:", stream, "has tracks:", stream?.getTracks().length);
 			} else {
-				// #region agent log
-				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:streamServerCreate-viewer',message:'User is viewer, stream undefined',data:{user,settingsId:this.settings.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H41'})}).catch(()=>{});
-				// #endregion
 				console.log("User mismatch, stream is undefined (watching someone else's stream)");
 			}
 			const voice = new Voice(
@@ -280,20 +265,11 @@ class VoiceFactory {
 			voice.startWS(voice2.session_id, create.d.rtc_server_id);
 			let video = false;
 			voice.onSatusChange = (e) => {
-				// #region agent log
-				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:onSatusChange',message:'onSatusChange callback fired',data:{event:e,hasStream:!!stream,streamTracks:stream?.getTracks().length,videoFlag:video,isDone:e==="done",willStartVideo:e==="done"&&stream&&!video},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H42'})}).catch(()=>{});
-				// #endregion
 				console.log("[Stream] onSatusChange event:", e, "stream:", !!stream, "video flag:", video, "streamTracks:", stream?.getTracks().length);
 				if (e === "done" && stream && !video) {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:startVideo-call',message:'About to call startVideo',data:{hasStream:!!stream,streamTracks:stream?.getTracks().length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H42'})}).catch(()=>{});
-					// #endregion
 					console.log("[Stream] Starting video stream with desktop capture");
 					voice.startVideo(stream);
 					video = true;
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:startVideo-done',message:'startVideo called successfully',data:{videoFlag:video},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H42'})}).catch(()=>{});
-					// #endregion
 				}
 				// After video starts, additional "done" events from ontrack are expected
 			};
@@ -499,10 +475,6 @@ class Voice {
 					setTimeout(this.sendAlive.bind(this), 1000);
 					break;
 				case 12:
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:op12',message:'Received op12 from server',data:{user_id:json.d.user_id,audio_ssrc:json.d.audio_ssrc,video_ssrc:json.d.video_ssrc,rtx_ssrc:json.d.rtx_ssrc,video_pt:json.d.video_pt,rtx_pt:json.d.rtx_pt,audio_pt:json.d.audio_pt,streams:json.d.streams,isStream:this.settings.stream,existingVidusers:[...this.vidusers]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-					// #endregion
-
 					// Store codec payload types from server for building SDP with matching PTs
 					if (json.d.video_pt !== undefined) this.codecInfo.video_pt = json.d.video_pt;
 					if (json.d.rtx_pt !== undefined) this.codecInfo.rtx_pt = json.d.rtx_pt;
@@ -546,10 +518,6 @@ class Voice {
 							break;
 						}
 
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:op12-streamViewer-immediate',message:'Stream viewer processing op12 immediately (before figureRecivers)',data:{producer:json.d.user_id,video_ssrc:json.d.video_ssrc,audio_ssrc:json.d.audio_ssrc,video_pt:this.codecInfo.video_pt,rtx_pt:this.codecInfo.rtx_pt},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
-						// #endregion
-						
 						// Stream viewer: offer has 1 video transceiver (or 1 audio + 1 video). Reuse and set vidusers/users.
 						const videoTransceivers = this.pc?.getTransceivers().filter((t) => (t as any).kind === "video") ?? [];
 						const hasExistingVideo = videoTransceivers.length >= 1;
@@ -597,40 +565,28 @@ class Voice {
 					}
 
 					// For non-stream-viewer connections (regular voice, streamers), use original flow
-					await this.figureRecivers();
-					if (
-						(!this.users.has(json.d.audio_ssrc) && json.d.audio_ssrc !== 0) ||
-						(!this.vidusers.has(json.d.video_ssrc) && json.d.video_ssrc !== 0)
-					) {
-						console.log("redo 12!");
-						this.makeOp12();
-					}
-					if (this.pc && json.d.audio_ssrc) {
-						// Set users BEFORE addTransceiver to avoid race condition
-						this.users.set(json.d.audio_ssrc, json.d.user_id);
-						this.pc.addTransceiver("audio", {
-							direction: "recvonly",
-							sendEncodings: [{active: true}],
-						});
-						const t = this.getLastAudioTrans();
-						if (t) t.direction = "recvonly";
-					}
-					if (this.pc && json.d.video_ssrc) {
-						// Set vidusers BEFORE addTransceiver to avoid race condition
-						// addTransceiver triggers negotiation which calls cleanServerSDP
-						// cleanServerSDP needs vidusers to be populated to build correct SDP
-						this.vidusers.set(json.d.video_ssrc, json.d.user_id);
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:op12-vidusers',message:'Added video_ssrc to vidusers BEFORE addTransceiver',data:{video_ssrc:json.d.video_ssrc,user_id:json.d.user_id,vidusersAfter:[...this.vidusers]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-						// #endregion
-						this.pc.addTransceiver("video", {
-							direction: "recvonly",
-							sendEncodings: [{active: true}],
-						});
-						const t = this.getLastVideoTrans();
-						if (t) t.direction = "recvonly";
-					}
+					console.log("[voice] op12 (regular voice): user_id=" + json.d.user_id,
+						"audio_ssrc=" + json.d.audio_ssrc,
+						"video_ssrc=" + json.d.video_ssrc,
+						"signalingState=" + this.pc?.signalingState,
+						"users.size=" + this.users.size,
+						"vidusers.size=" + this.vidusers.size,
+						"_initialSdpComplete=" + this._initialSdpComplete);
 
+					// CRITICAL FIX: Defer op12 processing until the initial SDP exchange is done.
+					// When Client B joins and Client A is already in the room, the server sends
+					// op12 BEFORE op4 (answer). If we add transceivers now, it triggers
+					// negotiationneeded which replaces the initial offer via setLocalDescription.
+					// This creates a complex interleaving where the first updateRemote uses the
+					// initial offer (without the recvonly transceiver), and the renegotiation with
+					// the new offer may fail or get stuck.
+					// Solution: Queue the op12 and process it after the initial exchange completes.
+					if (!this._initialSdpComplete) {
+						console.log("[voice] op12: deferring — initial SDP exchange not yet complete");
+						this._pendingOp12s.push(json);
+						break;
+					}
+					await this._processOp12(json);
 					break;
 			}
 		}
@@ -647,6 +603,180 @@ class Voice {
 		const audio = [...this.pc.getTransceivers()].filter((t) => (t as any).kind === "audio");
 		return audio.length ? audio[audio.length - 1] : undefined;
 	}
+	/**
+	 * Synchronous op12 processing: update SSRC maps and add transceivers.
+	 * Used by the deferred-replay path to batch multiple op12s before a single renegotiation.
+	 */
+	_processOp12Sync(json: any) {
+		if (
+			(!this.users.has(json.d.audio_ssrc) && json.d.audio_ssrc !== 0) ||
+			(!this.vidusers.has(json.d.video_ssrc) && json.d.video_ssrc !== 0)
+		) {
+			console.log("redo 12!");
+			this.makeOp12();
+		}
+		if (this.pc && json.d.audio_ssrc) {
+			let hadExistingAudio = false;
+			for (const [oldSsrc, uid] of this.users) {
+				if (uid === json.d.user_id) {
+					console.log("[voice] op12-sync: removing stale audio SSRC=" + oldSsrc + " for user=" + uid);
+					this.users.delete(oldSsrc);
+					hadExistingAudio = true;
+				}
+			}
+			this.users.set(json.d.audio_ssrc, json.d.user_id);
+			if (!hadExistingAudio) {
+				console.log("[voice] op12-sync: adding recvonly audio transceiver for user=" + json.d.user_id);
+				this.pc.addTransceiver("audio", { direction: "recvonly" });
+				const t = this.getLastAudioTrans();
+				if (t) t.direction = "recvonly";
+			}
+		}
+		if (this.pc && json.d.video_ssrc) {
+			let hadExistingVideo = false;
+			for (const [oldSsrc, uid] of this.vidusers) {
+				if (uid === json.d.user_id) {
+					console.log("[voice] op12-sync: removing stale video SSRC=" + oldSsrc + " for user=" + uid);
+					this.vidusers.delete(oldSsrc);
+					hadExistingVideo = true;
+				}
+			}
+			this.vidusers.set(json.d.video_ssrc, json.d.user_id);
+			if (!hadExistingVideo) {
+				this.pc.addTransceiver("video", { direction: "recvonly" });
+				const t = this.getLastVideoTrans();
+				if (t) t.direction = "recvonly";
+				console.log("[voice] op12-sync: added recvonly video transceiver for user=" + json.d.user_id);
+			}
+		}
+		if (this.pc) {
+			console.log("[voice] op12-sync done: signalingState=" + this.pc.signalingState,
+				"users=" + JSON.stringify([...this.users]),
+				"vidusers=" + JSON.stringify([...this.vidusers]),
+				"transceivers=" + this.pc.getTransceivers().length);
+		}
+	}
+	/**
+	 * Process an op12 message: update SSRC maps and add transceivers.
+	 * This is called when _initialSdpComplete is true (normal flow after initial exchange).
+	 */
+	async _processOp12(json: any) {
+		await this.figureRecivers();
+		if (
+			(!this.users.has(json.d.audio_ssrc) && json.d.audio_ssrc !== 0) ||
+			(!this.vidusers.has(json.d.video_ssrc) && json.d.video_ssrc !== 0)
+		) {
+			console.log("redo 12!");
+			this.makeOp12();
+		}
+		if (this.pc && json.d.audio_ssrc) {
+			// De-duplicate: remove stale SSRCs for this user_id.
+			let hadExistingAudio = false;
+			let ssrcActuallyChanged = false;
+			for (const [oldSsrc, uid] of this.users) {
+				if (uid === json.d.user_id) {
+					if (oldSsrc !== json.d.audio_ssrc) ssrcActuallyChanged = true;
+					console.log("[voice] op12: removing stale audio SSRC=" + oldSsrc + " for user=" + uid + " (replacing with " + json.d.audio_ssrc + ")");
+					this.users.delete(oldSsrc);
+					hadExistingAudio = true;
+				}
+			}
+			this.users.set(json.d.audio_ssrc, json.d.user_id);
+
+			if (!hadExistingAudio) {
+				console.log("[voice] op12: adding recvonly audio transceiver for user=" + json.d.user_id,
+					"audio_ssrc=" + json.d.audio_ssrc,
+					"signalingState=" + this.pc.signalingState,
+					"transceiverCount=" + this.pc.getTransceivers().length);
+				this.pc.addTransceiver("audio", {
+					direction: "recvonly",
+					sendEncodings: [{active: true}],
+				});
+				const t = this.getLastAudioTrans();
+				if (t) t.direction = "recvonly";
+				console.log("[voice] op12: after addTransceiver(audio), signalingState=" + this.pc.signalingState,
+					"transceiverCount=" + this.pc.getTransceivers().length);
+			} else if (ssrcActuallyChanged) {
+				console.log("[voice] op12: audio SSRC changed for existing user=" + json.d.user_id,
+					"new audio_ssrc=" + json.d.audio_ssrc + ", forcing renegotiation");
+				if (this.pc.signalingState === "stable") {
+					this.forceNext = true;
+					this.pc.createOffer().then(_offer => {
+						if (this.pc?.signalingState === "stable") {
+							this.pc.setLocalDescription().then(() => {
+								// signalingstatechange will trigger updateRemote
+							}).catch(e => console.warn("[voice] force renego setLocal:", e));
+						}
+					}).catch(e => console.warn("[voice] force renego createOffer:", e));
+				}
+			} else {
+				console.log("[voice] op12: same audio SSRC for user=" + json.d.user_id,
+					"audio_ssrc=" + json.d.audio_ssrc + " (no change needed)");
+			}
+		}
+		if (this.pc && json.d.video_ssrc) {
+			let hadExistingVideo = false;
+			let videoSsrcChanged = false;
+			for (const [oldSsrc, uid] of this.vidusers) {
+				if (uid === json.d.user_id) {
+					if (oldSsrc !== json.d.video_ssrc) videoSsrcChanged = true;
+					console.log("[voice] op12: removing stale video SSRC=" + oldSsrc + " for user=" + uid + " (replacing with " + json.d.video_ssrc + ")");
+					this.vidusers.delete(oldSsrc);
+					hadExistingVideo = true;
+				}
+			}
+			this.vidusers.set(json.d.video_ssrc, json.d.user_id);
+			if (!hadExistingVideo) {
+				this.pc.addTransceiver("video", {
+					direction: "recvonly",
+					sendEncodings: [{active: true}],
+				});
+				const t = this.getLastVideoTrans();
+				if (t) t.direction = "recvonly";
+				console.log("[voice] op12: after addTransceiver(video), signalingState=" + this.pc.signalingState,
+					"transceiverCount=" + this.pc.getTransceivers().length);
+			} else if (videoSsrcChanged) {
+				console.log("[voice] op12: video SSRC changed for existing user=" + json.d.user_id,
+					"new video_ssrc=" + json.d.video_ssrc + ", forcing renegotiation");
+				if (this.pc.signalingState === "stable") {
+					this.forceNext = true;
+					this.pc.createOffer().then(_offer => {
+						if (this.pc?.signalingState === "stable") {
+							this.pc.setLocalDescription().then(() => {
+							}).catch(e => console.warn("[voice] force video renego setLocal:", e));
+						}
+					}).catch(e => console.warn("[voice] force video renego createOffer:", e));
+				}
+			} else {
+				console.log("[voice] op12: same video SSRC for user=" + json.d.user_id,
+					"video_ssrc=" + json.d.video_ssrc + " (no change needed)");
+			}
+		}
+
+		// Post-op12 verification logging
+		if (this.pc) {
+			const pcRef = this.pc;
+			console.log("[voice] op12 done: signalingState=" + pcRef.signalingState,
+				"users=" + JSON.stringify([...this.users]),
+				"vidusers=" + JSON.stringify([...this.vidusers]),
+				"transceivers=" + pcRef.getTransceivers().map((t, i) =>
+					i + ":" + ((t as any).kind || t.receiver.track?.kind || "?") + "/" + t.direction + "/" + (t.currentDirection ?? "null")
+				).join(", "));
+			setTimeout(() => {
+				console.log("[voice] op12 renegotiation check @1s: signalingState=" + pcRef.signalingState,
+					"iceConnectionState=" + pcRef.iceConnectionState,
+					"connectionState=" + pcRef.connectionState);
+			}, 1000);
+			setTimeout(() => {
+				console.log("[voice] op12 renegotiation check @3s: signalingState=" + pcRef.signalingState,
+					"iceConnectionState=" + pcRef.iceConnectionState,
+					"connectionState=" + pcRef.connectionState,
+					"transceivers=" + pcRef.getTransceivers().map((t, i) =>
+						i + ":" + ((t as any).kind || t.receiver.track?.kind || "?") + "/" + t.direction + "/" + (t.currentDirection ?? "null")
+					).join(", "));
+			}, 3000);
+		}
+	}
 	hoffer?: string;
 	get offer() {
 		return this.hoffer;
@@ -656,9 +786,6 @@ class Voice {
 	}
 	fingerprint?: string;
 	async cleanServerSDP(sdp: string): Promise<string> {
-		// #region agent log
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:cleanServerSDP-entry',message:'cleanServerSDP called',data:{isStream:this.settings.stream,vidusers:[...this.vidusers],users:[...this.users]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-		// #endregion
 		const out = await this.getCamInfo();
 		if (out.video_ssrc) {
 			this.vidusers.set(out.video_ssrc, this.userid);
@@ -695,6 +822,40 @@ class Voice {
 
 		const audioUsers = [...this.users];
 		const videoUsers = [...this.vidusers];
+		// Preserve server's first audio m-line SSRC when we have no audioUsers entry for it.
+		// The server (mediasoup) puts the first remote consumer's audio SSRC in the initial answer's
+		// first (sendrecv) audio m-line. We rebuild the answer from this.users (op12); if op12 hasn't
+		// arrived yet or we're the last joiner, audioUsers is empty and we'd drop that SSRC — so the
+		// last joiner would never receive the first joiner's audio. Preserve it from the raw server SDP.
+		let serverAudioSsrc: number | undefined;
+		if (sdp) {
+			try {
+				const serverParsed = Voice.parsesdp(sdp);
+				const firstAudioMedia = serverParsed.medias.find((m) => m.media === "audio");
+				const ssrcSet = firstAudioMedia?.atr.get("ssrc");
+				if (ssrcSet && ssrcSet.size > 0) {
+					const first = [...ssrcSet][0];
+					const ssrcNum = parseInt(String(first).trim().split(/\s+/)[0], 10);
+					if (!isNaN(ssrcNum)) {
+						serverAudioSsrc = ssrcNum;
+						console.log("[voice] cleanServerSDP: preserving server first audio m-line SSRC:", serverAudioSsrc);
+					}
+				}
+				if (serverAudioSsrc == null) {
+					const sdpNorm = sdp.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+					const audioSection = sdpNorm.split(/\nm=audio\b/)[1];
+					if (audioSection) {
+						const match = audioSection.match(/a=ssrc[:\s]+(\d+)/);
+						if (match) {
+							serverAudioSsrc = parseInt(match[1], 10);
+							console.log("[voice] cleanServerSDP: preserved server audio SSRC (regex fallback):", serverAudioSsrc);
+						}
+					}
+				}
+			} catch (e) {
+				console.warn("[voice] cleanServerSDP: failed to parse server audio SSRC", e);
+			}
+		}
 		// When vidusers is empty (answer applied before op12, or isStreamViewer never set), we'd build no video SSRC.
 		// The receiver would then not expect Mediasoup's SSRC and only the first keyframe might get through.
 		// Always parse the raw server answer for the first video m-line's SSRC when we have no vidusers — do not rely on isStreamViewer (it can be undefined if viewer joined via a path that didn't set it).
@@ -799,6 +960,16 @@ a=group:BUNDLE ${bundles.join(" ")}\r`;
 			}[cur];
 			if (grouping.media === "audio") {
 				const port = [...grouping.ports][0];
+				// BUG FIX: Only assign an audio SSRC to this m-line if the offer direction
+				// is NOT inactive. If the offer is inactive, the answer MUST be inactive —
+				// otherwise Chrome rejects with "Failed to set up audio demuxing".
+				// Don't consume from audioUsers or increment ai for inactive m-lines
+				// so the SSRC is preserved for the correct recvonly m-line added later.
+				const isInactive = cur === "inactive";
+				const hasAudioUser = !isInactive && audioUsers[ai] && audioUsers[ai][1];
+				// Use server's first audio SSRC when we have no audioUsers entry (e.g. last joiner;
+				// server already put first remote consumer SSRC in the initial answer).
+				const useServerAudioSsrc = !hasAudioUser && !isInactive && serverAudioSsrc != null;
 				build += `
 m=audio ${parsed1.port} UDP/TLS/RTP/SAVPF ${port}\r
 ${cline}\r
@@ -807,20 +978,21 @@ a=fmtp:${port} minptime=10;useinbandfec=1;usedtx=1\r
 a=rtcp:${rtcport}\r
 a=rtcp-fb:${port} transport-cc\r
 a=setup:passive\r
-a=mid:${bundles[i]}${audioUsers[ai] && audioUsers[ai][1] ? `\r\na=msid:${audioUsers[ai][1]}-${audioUsers[ai][0]} a${audioUsers[ai][1]}-${audioUsers[ai][0]}\r` : "\r"}
+a=mid:${bundles[i]}${hasAudioUser ? `\r\na=msid:${audioUsers[ai][1]}-${audioUsers[ai][0]} a${audioUsers[ai][1]}-${audioUsers[ai][0]}\r` : "\r"}
 a=maxptime:60\r
-a=${audioUsers[ai] && audioUsers[ai][1] ? "sendonly" : mode}\r
+a=${hasAudioUser ? "sendonly" : mode}\r
 a=ice-ufrag:${ICE_UFRAG}\r
 a=ice-pwd:${ICE_PWD}\r
 a=fingerprint:${FINGERPRINT}\r
-a=candidate:${candidate}${audioUsers[ai] && audioUsers[ai][1] ? `\r\na=ssrc:${audioUsers[ai][0]} cname:${audioUsers[ai][1]}-${audioUsers[ai][0]}\r` : "\r"}
+a=candidate:${candidate}${hasAudioUser ? `\r\na=ssrc:${audioUsers[ai][0]} cname:${audioUsers[ai][1]}-${audioUsers[ai][0]}\r` : (useServerAudioSsrc ? `\r\na=ssrc:${serverAudioSsrc} cname:mediasoup-audio-${serverAudioSsrc}\r` : "\r")}
 a=rtcp-mux\r`;
 				// Add extmap lines from local SDP (REQUIRED for BUNDLE demux)
 				for (const extmap of localExtmaps) {
 					build += `\n${extmap}\r`;
 				}
-				console.log(audioUsers[ai], "audio user");
-				ai++;
+				console.log(audioUsers[ai], "audio user", "isInactive:", isInactive, "cur:", cur);
+				// Don't advance the audioUsers index for inactive m-lines
+				if (!isInactive) ai++;
 			} else {
 				// For stream viewers: extra video m-lines as inactive (answer must match offer m-line count)
 				if (this.settings.isStreamViewer && vi > 0) {
@@ -886,13 +1058,18 @@ a=inactive\r`;
 				const rtxRtpmap = port2 ? `a=rtpmap:${port2} rtx/90000\r\n` : "";
 				const rtxFmtp = port2 ? `a=fmtp:${port2} apt=${port1}\r\n` : "";
 				
-				// First video m-line: use vidusers if set, else server answer's video SSRC (vi can be -1 when isStreamViewer undefined)
-				const haveViduser = videoUsers[vi] && videoUsers[vi][1];
+				// BUG FIX: Don't assign a video SSRC to inactive m-lines.
+				const isVideoInactive = cur === "inactive";
+				// First video m-line: use vidusers if set, else server answer's video SSRC (vi can be -1 when isStreamViewer undefined).
+				// Never use an SSRC on the video m-line that equals serverAudioSsrc — that is the audio consumer SSRC;
+				// putting it on mid=23 (video) causes Chrome to fail with "Failed to set up audio demuxing for mid='23'".
+				const safeServerVideoSsrc = (!isVideoInactive && serverVideoSsrc != null && serverVideoSsrc !== serverAudioSsrc && !usedServerVideoSsrc)
+					? serverVideoSsrc
+					: undefined;
+				const haveViduser = !isVideoInactive && videoUsers[vi] && videoUsers[vi][1];
 				let videoSsrcForBuild: { ssrc: number; cname: string } | null = haveViduser
 					? { ssrc: videoUsers[vi][0], cname: `${videoUsers[vi][1]}-${videoUsers[vi][0]}` }
-					: (serverVideoSsrc != null && !usedServerVideoSsrc)
-						? (usedServerVideoSsrc = true, { ssrc: serverVideoSsrc, cname: `stream-${serverVideoSsrc}` })
-						: null;
+					: (safeServerVideoSsrc != null ? (usedServerVideoSsrc = true, { ssrc: safeServerVideoSsrc, cname: `stream-${safeServerVideoSsrc}` }) : null);
 				build += `
 m=video ${parsed1.port} UDP/TLS/RTP/SAVPF ${videoPayloads}\r
 ${cline}\r
@@ -916,7 +1093,8 @@ a=rtcp-mux\r`;
 				for (const extmap of localExtmaps) {
 					build += `\n${extmap}\r`;
 				}
-				vi++;
+				// Don't advance the videoUsers index for inactive m-lines
+				if (!isVideoInactive) vi++;
 				console.log(mode, "fine me :3");
 			}
 			i++;
@@ -927,13 +1105,6 @@ a=rtcp-mux\r`;
 		// Extract video m-line for logging (get FULL first video m-line, not truncated)
 		const videoMlines = build.split('\nm=video').slice(1).map(s => 'm=video' + s.split('\nm=')[0]);
 		// Check for extmap lines in original server SDP  
-		const serverExtmaps = sdp.match(/a=extmap:[^\r\n]+/g) || [];
-		// Check if SSRC line is in first video m-line
-		const firstVideoSsrcMatch = videoMlines[0]?.match(/a=ssrc:(\d+)/);
-		
-		// #region agent log
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:cleanServerSDP-exit',message:'cleanServerSDP built SDP',data:{isStream:this.settings.stream,isStreamViewer:this.settings.isStreamViewer,codecInfo:this.codecInfo,videoUsers:[...this.vidusers],videoMlineCount:videoMlines.length,firstVideoMlineFull:videoMlines[0],firstVideoSsrc:firstVideoSsrcMatch?.[1],serverExtmapCount:serverExtmaps.length,serverExtmaps:serverExtmaps.slice(0,5),localExtmapCount:localExtmaps.length,localExtmaps:localExtmaps.slice(0,10),builtSdpHasExtmap:build.includes('a=extmap')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H33'})}).catch(()=>{});
-		// #endregion
 		return build;
 	}
 	counter?: string;
@@ -941,6 +1112,10 @@ a=rtcp-mux\r`;
 	hasReceivedProducerOp12: boolean = false;
 	/** Prevents concurrent updateRemote() so we never setRemoteDescription twice. */
 	private _updateRemoteInProgress: boolean = false;
+	/** True after the first successful setRemoteDescription (initial SDP exchange done). */
+	private _initialSdpComplete: boolean = false;
+	/** Op12 messages that arrived before the initial SDP exchange completed. */
+	private _pendingOp12s: any[] = [];
 	/** Extract a=mid values in SDP order (one per m= section). */
 	private static getMidOrder(sdp: string): string[] {
 		const mids: string[] = [];
@@ -1011,23 +1186,44 @@ a=rtcp-mux\r`;
 			}
 			// Guard: offer must not have been replaced (e.g. negotiationneeded) or answer m-line order would mismatch
 			if (this.pc.localDescription?.sdp !== offerSdpAtStart) {
-				console.warn("[voice] updateRemote: skip (offer changed since start), re-sending current offer (op1) so server can answer it");
-				this.sendCurrentOfferToServer();
+				console.warn("[voice] updateRemote: skip (offer changed since start), will retry with current offer");
+				// DO NOT call sendCurrentOfferToServer() here!
+				// That sends op1 to the server which creates a BRAND NEW transport,
+				// destroying all existing consumers and breaking audio/video.
+				// Instead, schedule a retry — signalingstatechange or this retry will
+				// re-run updateRemote() with the current (correct) offer.
+				const retryPc = this.pc;
+				setTimeout(() => {
+					if (retryPc === this.pc && this.pc.signalingState === "have-local-offer") {
+						this.updateRemote().catch(e => console.warn("[voice] updateRemote retry after offer-changed:", e));
+					}
+				}, 50);
 				return;
 			}
 			try {
 				await this.pc.setRemoteDescription(remote);
 				console.log("[voice] setRemoteDescription done, new signalingState=" + this.pc.signalingState);
-				// #region agent log
-				const transceivers = this.pc.getTransceivers().map((t, idx) => ({idx,mid:t.mid,kind:t.receiver.track?.kind,direction:t.direction,currentDirection:t.currentDirection,receiverTrackId:t.receiver.track?.id,receiverTrackEnabled:t.receiver.track?.enabled,receiverTrackMuted:t.receiver.track?.muted,receiverTrackReadyState:t.receiver.track?.readyState}));
-				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:updateRemote-afterSetRemote',message:'Transceivers after setRemoteDescription',data:{isStreamViewer:this.settings.isStreamViewer,signalingState:this.pc.signalingState,transceivers,offerMids:Voice.getMidOrder(this.pc.localDescription!.sdp),answerMids:Voice.getMidOrder(remote.sdp),answerSsrcs:(remote.sdp.match(/a=ssrc:\d+/g)||[]).map((s:string)=>s.replace('a=ssrc:','')),vidusers:[...this.vidusers]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H52'})}).catch(()=>{});
-				// #endregion
+				// Mark initial SDP exchange as complete and process any deferred op12s.
+				// This ensures transceivers are added from a "stable" state, leading to
+				// clean renegotiation cycles (same as what Client A experiences).
+				if (!this._initialSdpComplete) {
+					this._initialSdpComplete = true;
+					console.log("[voice] initial SDP exchange complete, processing " + this._pendingOp12s.length + " deferred op12(s)");
+					const pending = this._pendingOp12s.splice(0);
+					// Process all deferred op12s SYNCHRONOUSLY (just maps + transceivers).
+					// Don't await _processOp12 in a loop because its 500ms figureRecivers
+					// delay would cause renegotiation to interleave badly.
+					// After all transceivers are added, negotiationneeded fires ONCE and
+					// handles the renegotiation cleanly.
+					for (const pendingJson of pending) {
+						console.log("[voice] replaying deferred op12 for user=" + pendingJson.d.user_id,
+							"audio_ssrc=" + pendingJson.d.audio_ssrc, "video_ssrc=" + pendingJson.d.video_ssrc);
+						this._processOp12Sync(pendingJson);
+					}
+				}
 			} catch (err) {
 				const errMsg = err instanceof Error ? err.message : String(err);
 				console.error("[voice] setRemoteDescription failed:", errMsg, err);
-				// #region agent log
-				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:updateRemote-setRemoteFailed',message:'setRemoteDescription FAILED',data:{error:String(err),isStreamViewer:this.settings.isStreamViewer,signalingState:this.pc.signalingState,remoteSdpPreview:remote.sdp.substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H52'})}).catch(()=>{});
-				// #endregion
 				return;
 			}
 			// Streamer: move from "sendingStreams" to "done" as soon as we apply the viewer's answer
@@ -1135,10 +1331,19 @@ a=rtcp-mux\r`;
 				console.warn(e.candidate);
 			};
 
+			const WAIT_ANSWER_MS = 20000; // Don't hang forever if server never sends op4
 			pc.addEventListener("signalingstatechange", async () => {
 				logState("signalingstatechange", pc.signalingState);
 				detectDone();
-				while (!this.counter) await new Promise((res) => setTimeout(res, 100));
+				const deadline = Date.now() + WAIT_ANSWER_MS;
+				while (!this.counter && Date.now() < deadline) {
+					await new Promise((res) => setTimeout(res, 100));
+				}
+				if (!this.counter) {
+					console.error("[voice] No SDP answer (op4) from server within " + (WAIT_ANSWER_MS / 1000) + "s — connection may have failed");
+					this.status = "conectionFailed";
+					return;
+				}
 				if (this.pc && this.counter) {
 					if (pc.signalingState === "have-local-offer") {
 						const val = (Math.random() * 1000) ^ 0;
@@ -1208,16 +1413,9 @@ a=rtcp-mux\r`;
 		const cammera = this.cammera;
 		const cam = this.cam;
 		let attemps = 0;
-		// #region agent log
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:getCamInfo-entry',message:'getCamInfo starting',data:{hasCam:!!cam,hasCammera:!!cammera,camDirection:cam?.direction,senderTrack:cam?.sender?.track?.id,senderTrackKind:cam?.sender?.track?.kind},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H39'})}).catch(()=>{});
-		// #endregion
 		if (cam && cammera) {
 			do {
 				if (attemps > 10) {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:getCamInfo-timeout',message:'getCamInfo timed out after 10 attempts',data:{video_ssrc,rtx_ssrc,attemps},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H39'})}).catch(()=>{});
-					// #endregion
-					
 					// Fallback: parse SSRC from SDP if stats failed
 					if ((!video_ssrc || !rtx_ssrc) && this.pc?.localDescription?.sdp) {
 						try {
@@ -1257,12 +1455,6 @@ a=rtcp-mux\r`;
 					return {video_ssrc, rtx_ssrc};
 				}
 				const stats = (await cam.sender.getStats()) as Map<string, any>;
-				const statsArray = Array.from(stats);
-				// #region agent log
-				if (attemps === 0 || attemps === 5 || attemps === 10) {
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:getCamInfo-attempt',message:'getCamInfo attempt',data:{attemps,statsCount:statsArray.length,statsTypes:statsArray.map(s=>s[1].type),video_ssrc,rtx_ssrc,firstStat:statsArray[0]?.[1]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H39'})}).catch(()=>{});
-				}
-				// #endregion
 				Array.from(stats).forEach((_) => {
 					if (_[1].ssrc) {
 						video_ssrc = _[1].ssrc;
@@ -1274,13 +1466,6 @@ a=rtcp-mux\r`;
 				attemps++;
 				await new Promise((res) => setTimeout(res, 100));
 			} while (!video_ssrc || !rtx_ssrc);
-			// #region agent log
-			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:getCamInfo-success',message:'getCamInfo found SSRCs',data:{video_ssrc,rtx_ssrc,attemps},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H39'})}).catch(()=>{});
-			// #endregion
-		} else {
-			// #region agent log
-			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:getCamInfo-noCamOrCammera',message:'getCamInfo skipped - no cam or cammera',data:{hasCam:!!cam,hasCammera:!!cammera,video_ssrc,rtx_ssrc},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-			// #endregion
 		}
 		return {video_ssrc, rtx_ssrc};
 	}
@@ -1351,18 +1536,6 @@ a=rtcp-mux\r`;
 		await this.applyStreamEncodingParams();
 
 		const {rtx_ssrc, video_ssrc} = await this.getCamInfo();
-		// #region agent log - enhanced with SDP inspection
-		const localSdpForLog = this.pc?.localDescription?.sdp || '';
-		const sdpSsrcLines = localSdpForLog.match(/a=ssrc:(\d+)/g) || [];
-		const sdpSsrcGroupLines = localSdpForLog.match(/a=ssrc-group:FID (\d+) (\d+)/g) || [];
-		const senderTracks = this.cam?.sender?.track ? { 
-			id: this.cam.sender.track.id, 
-			enabled: this.cam.sender.track.enabled, 
-			readyState: this.cam.sender.track.readyState,
-			muted: this.cam.sender.track.muted
-		} : null;
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:makeOp12-fullState',message:'Streamer makeOp12 full state',data:{isStream:this.settings.stream,video_ssrc,rtx_ssrc,hasCam:!!this.cam,hasCammera:!!this.cammera,camDirection:this.cam?.direction,sdpSsrcLines:sdpSsrcLines.slice(0,10),sdpSsrcGroupLines:sdpSsrcGroupLines.slice(0,5),senderTracks,pcConnectionState:this.pc?.connectionState,pcSignalingState:this.pc?.signalingState,iceConnectionState:this.pc?.iceConnectionState,localSdpLen:localSdpForLog.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-		// #endregion
 		if (this.cam && this.cammera) {
 		} else if (!sender) {
 			return;
@@ -1636,9 +1809,6 @@ a=rtcp-mux\r`;
 	streamAudioSender?: RTCRtpSender;
 
 	async startVideo(caml: MediaStream) {
-		// #region agent log
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:startVideo-entry',message:'startVideo function ENTERED',data:{hasCaml:!!caml,camlTracks:caml?.getTracks().length,hasCam:!!this.cam,settingsStream:this.settings.stream},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H42'})}).catch(()=>{});
-		// #endregion
 		while (!this.cam) {
 			await new Promise((res) => setTimeout(res, 100));
 		}
@@ -1648,10 +1818,6 @@ a=rtcp-mux\r`;
 		const [cam] = videoTracks;
 
 		console.log("Stream has", videoTracks.length, "video tracks and", audioTracks.length, "audio tracks");
-		// #region agent log
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:startVideo',message:'Streamer starting video',data:{isStream:this.settings.stream,videoTracksCount:videoTracks.length,audioTracksCount:audioTracks.length,camEnabled:cam?.enabled,camMuted:cam?.muted,camReadyState:cam?.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-		// #endregion
-
 		if (!this.settings.stream) this.owner.video = true;
 
 		this.cammera = cam;
@@ -1735,21 +1901,22 @@ a=rtcp-mux\r`;
 	streams = new Set<MediaStreamTrack>();
 	async startWebRTC() {
 		this.status = "makingOffer";
+		// Reset all signaling state for this new connection so we never use stale data
+		// from a previous connection (avoids second client hanging or using wrong answer).
+		this._initialSdpComplete = false;
+		this._pendingOp12s = [];
+		this.counter = undefined;
+		this.offer = undefined;
+		this.off = undefined;
 		const pc = new RTCPeerConnection({
 			bundlePolicy: "max-bundle",
 		});
 		pc.ontrack = async (e) => {
-			// #region agent log
-			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack',message:'ontrack event fired',data:{trackKind:e.track.kind,trackId:e.track.id,trackEnabled:e.track.enabled,trackMuted:e.track.muted,trackReadyState:e.track.readyState,streamId:e.streams[0]?.id,streamActive:e.streams[0]?.active,isStream:this.settings.stream,iceConnectionState:pc.iceConnectionState,connectionState:pc.connectionState,signalingState:pc.signalingState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H21'})}).catch(()=>{});
-			// #endregion
 			this.status = "done";
 			this.onconnect();
 			const media = e.streams[0];
 			if (!media) {
 				console.log(e);
-				// #region agent log
-				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-nomedia',message:'ontrack: no media stream',data:{trackKind:e.track.kind,trackId:e.track.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-				// #endregion
 				return;
 			}
 			let userId = media.id.split("-")[0];
@@ -1757,9 +1924,6 @@ a=rtcp-mux\r`;
 				//TODO I don't know why but without this firefox bugs out on streams
 				if (media.id.match("{")) return;
 				if (this.owner.currentVoice?.voiceMap.get(this.userid) === this) {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-skip-self',message:'ontrack: skipping own stream',data:{userId,isStream:this.settings.stream},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-					// #endregion
 					return;
 				}
 
@@ -1804,29 +1968,17 @@ a=rtcp-mux\r`;
 				//   keyframe requests (VoiceRoom STREAM_KEYFRAME_INTERVAL_MS) help.
 				// Add event listeners to track video loading state
 				video.addEventListener('loadedmetadata', () => {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:video-loadedmetadata',message:'Video loadedmetadata event fired',data:{userId,videoWidth:video.videoWidth,videoHeight:video.videoHeight,videoReadyState:video.readyState,isStream:this.settings.stream},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H10'})}).catch(()=>{});
-					// #endregion
 					console.log("[voice] Video loadedmetadata:", video.videoWidth, "x", video.videoHeight);
 				});
 				video.addEventListener('loadeddata', () => {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:video-loadeddata',message:'Video loadeddata event fired',data:{userId,videoWidth:video.videoWidth,videoHeight:video.videoHeight,videoReadyState:video.readyState,isStream:this.settings.stream},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H10'})}).catch(()=>{});
-					// #endregion
 					console.log("[voice] Video loadeddata");
 				});
 				video.addEventListener('canplay', () => {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:video-canplay',message:'Video canplay event fired',data:{userId,videoWidth:video.videoWidth,videoHeight:video.videoHeight,isStream:this.settings.stream},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H10'})}).catch(()=>{});
-					// #endregion
 					console.log("[voice] Video canplay");
 					// Ensure playback continues (live stream can stall after first frame if play() was called before data arrived)
 					video.play().catch(() => {});
 				});
 
-				// #region agent log
-				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-video-attached',message:'Video track attached to element',data:{userId,mediaId:media.id,trackEnabled:e.track.enabled,trackMuted:e.track.muted,isStream:this.settings.stream,videoInDOM:!!video.parentElement,videoWidth:video.videoWidth,videoHeight:video.videoHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
-				// #endregion
 				console.log("gotVideo?", media);
 				// So viewers get self_video in gateway; streamer sets it in onSatusChange when startVideo runs.
 				if (this.settings.isStreamViewer && this.owner) {
@@ -1835,15 +1987,7 @@ a=rtcp-mux\r`;
 				}
 
 				// Try to play video explicitly and check for autoplay issues
-				video.play().then(() => {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-video-play-success',message:'video.play() succeeded',data:{userId,videoWidth:video.videoWidth,videoHeight:video.videoHeight,videoReadyState:video.readyState,videoPaused:video.paused,videoInDOM:!!video.parentElement},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
-					// #endregion
-				}).catch((err) => {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-video-play-error',message:'video.play() FAILED',data:{userId,error:String(err),videoInDOM:!!video.parentElement},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
-					// #endregion
-				});
+				video.play().then(() => {}).catch((err) => {});
 
 				// Live stream: if video stalls after first frame (paused but has data), keep trying play()
 				if (this.settings.isStreamViewer) {
@@ -1922,15 +2066,9 @@ a=rtcp-mux\r`;
 								};
 							}
 						});
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-allInboundRtp',message:'ALL inbound-rtp reports at 500ms',data:{userId,allInboundRtp,candidatePair,isStreamViewer:this.settings.isStreamViewer},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H53'})}).catch(()=>{});
-						// #endregion
 					} catch (err) {
 						if (err instanceof Error && err.name !== "InvalidStateError") console.warn("[voice] getStats @500ms:", err);
 					}
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-video-state-500ms',message:'Video element state at 500ms',data:{userId,videoWidth:video.videoWidth,videoHeight:video.videoHeight,videoReadyState:video.readyState,videoPaused:video.paused,videoCurrentTime:video.currentTime,videoInDOM:!!video.parentElement,parentTagName:video.parentElement?.tagName,isStream:this.settings.stream,srcObjectId:(video.srcObject as MediaStream)?.id,srcObjectActive:(video.srcObject as MediaStream)?.active,srcObjectTrackCount:(video.srcObject as MediaStream)?.getTracks().length,videoTrackEnabled:(video.srcObject as MediaStream)?.getVideoTracks()[0]?.enabled,videoTrackMuted:(video.srcObject as MediaStream)?.getVideoTracks()[0]?.muted,videoTrackReadyState:(video.srcObject as MediaStream)?.getVideoTracks()[0]?.readyState,videoReceiverStats:receiverStats,audioReceiverStats:audioStats,iceConnectionState:pc.iceConnectionState,connectionState:pc.connectionState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H33'})}).catch(()=>{});
-					// #endregion
 					console.log("[voice] VIDEO RECEIVER STATS @500ms (userId=" + userId + ", isStreamViewer=" + this.settings.isStreamViewer + "):", receiverStats ?? "no inbound-rtp video report");
 				}, 500);
 
@@ -1961,9 +2099,6 @@ a=rtcp-mux\r`;
 					} catch (err) {
 						if (err instanceof Error && err.name !== "InvalidStateError") console.warn("[voice] getStats @2s:", err);
 					}
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-video-state-2000ms',message:'Video element state at 2000ms',data:{userId,videoWidth:video.videoWidth,videoHeight:video.videoHeight,videoReadyState:video.readyState,videoPaused:video.paused,videoCurrentTime:video.currentTime,srcObjectActive:(video.srcObject as MediaStream)?.active,videoTrackMuted:(video.srcObject as MediaStream)?.getVideoTracks()[0]?.muted,receiverStats},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H20'})}).catch(()=>{});
-					// #endregion
 					// Debug: log video receiver stats so we can see if RTP is reaching this receiver
 					console.log("[voice] VIDEO RECEIVER STATS @2s (userId=" + userId + ", isStreamViewer=" + this.settings.isStreamViewer + "):", receiverStats ?? "no inbound-rtp video report");
 					if (video.readyState === 0) {
@@ -1972,11 +2107,7 @@ a=rtcp-mux\r`;
 				}, 2000);
 
 				// Final check at 3 seconds
-				setTimeout(() => {
-					// #region agent log
-					DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-video-state-3000ms',message:'Video element state at 3000ms',data:{userId,videoWidth:video.videoWidth,videoHeight:video.videoHeight,videoReadyState:video.readyState,videoPaused:video.paused,videoCurrentTime:video.currentTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
-					// #endregion
-				}, 3000);
+				setTimeout(() => {}, 3000);
 
 				// For stream viewers: signal to server that we're ready to receive video
 				// This triggers a keyframe request so we can decode the video stream
@@ -1999,9 +2130,6 @@ a=rtcp-mux\r`;
 							}
 						}
 
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-sendViewerReady',message:'Stream viewer sending VIEWER_READY (op 10)',data:{viewer:this.userid,producer:userId,attempt,trackMuted:e.track.muted,trackEnabled:e.track.enabled,trackReadyState:e.track.readyState,videoReadyState:video.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
-						// #endregion
 						console.log("[voice] Stream viewer sending VIEWER_READY for producer:", userId, "attempt:", attempt, "videoReadyState:", video.readyState);
 						try {
 							this.ws.send(JSON.stringify({
@@ -2012,9 +2140,6 @@ a=rtcp-mux\r`;
 							}));
 						} catch (err) {
 							console.error("[voice] Failed to send VIEWER_READY:", err);
-							// #region agent log
-							DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-sendViewerReady-error',message:'Failed to send VIEWER_READY',data:{viewer:this.userid,producer:userId,error:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
-							// #endregion
 						}
 					};
 
@@ -2042,9 +2167,6 @@ a=rtcp-mux\r`;
 
 					// Wait for transport to be ready (track unmutes), then request keyframe
 					waitForTrackUnmute().then(() => {
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-afterUnmute',message:'Track unmuted or timeout, sending VIEWER_READY',data:{viewer:this.userid,producer:userId,trackMuted:e.track.muted,videoReadyState:video.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
-						// #endregion
 						console.log("[voice] Track unmuted or timeout reached, sending VIEWER_READY");
 						sendViewerReady(1);
 					});
@@ -2052,9 +2174,6 @@ a=rtcp-mux\r`;
 					// Always send additional keyframe requests with delays
 					// Even if video is playing, these are harmless and ensure decoder sync
 					setTimeout(() => {
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-check300ms',message:'Requesting keyframe at 300ms',data:{viewer:this.userid,producer:userId,trackMuted:e.track.muted,videoReadyState:video.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
-						// #endregion
 						// Only request if video still not playing
 						if (video.readyState === 0) {
 							console.log("[voice] Video still not ready at 300ms, requesting keyframe again");
@@ -2063,9 +2182,6 @@ a=rtcp-mux\r`;
 					}, 300);
 
 					setTimeout(() => {
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-check600ms',message:'Requesting keyframe at 600ms',data:{viewer:this.userid,producer:userId,trackMuted:e.track.muted,videoReadyState:video.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
-						// #endregion
 						if (video.readyState === 0) {
 							console.log("[voice] Video still not ready at 600ms, requesting keyframe again");
 							sendViewerReady(3);
@@ -2074,9 +2190,6 @@ a=rtcp-mux\r`;
 
 					// Check at 1000ms and request keyframe if still not ready
 					setTimeout(() => {
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-check1000ms',message:'Check at 1000ms',data:{viewer:this.userid,producer:userId,trackMuted:e.track.muted,trackEnabled:e.track.enabled,videoReadyState:video.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
-						// #endregion
 						if (video.readyState === 0) {
 							console.log("[voice] Video still not ready at 1000ms, requesting keyframe again");
 							sendViewerReady(4);
@@ -2085,9 +2198,6 @@ a=rtcp-mux\r`;
 
 					// Last resort at 1500ms
 					setTimeout(() => {
-						// #region agent log
-						DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:ontrack-check1500ms',message:'Check at 1500ms',data:{viewer:this.userid,producer:userId,trackMuted:e.track.muted,videoReadyState:video.readyState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H14'})}).catch(()=>{});
-						// #endregion
 						if (video.readyState === 0) {
 							console.log("[voice] Video still not ready at 1500ms, requesting keyframe again");
 							sendViewerReady(5);
@@ -2099,19 +2209,84 @@ a=rtcp-mux\r`;
 			}
 
 			console.log("got audio:", e);
+			const audioTracks = media.getAudioTracks();
+			console.log("[voice] Audio ontrack: streamId=" + media.id,
+				"streamActive=" + media.active,
+				"trackCount=" + audioTracks.length,
+				"tracks:", audioTracks.map(t => ({
+					id: t.id, enabled: t.enabled, muted: t.muted, readyState: t.readyState, label: t.label,
+				})));
 			for (const track of media.getTracks()) {
 				console.log(track);
 			}
 
 			const context = new AudioContext();
-			console.log(context);
+			console.log("[voice] AudioContext created, initial state:", context.state);
 			await context.resume();
+			console.log("[voice] AudioContext after resume(), state:", context.state,
+				"sampleRate:", context.sampleRate,
+				"baseLatency:", context.baseLatency);
 			const ss = context.createMediaStreamSource(media);
 			console.log(media, ss);
 			new Audio().srcObject = media; //weird I know, but it's for chromium/webkit bug
 			ss.connect(context.destination);
 			this.recivers.add(e.receiver);
 			console.log(this.recivers);
+
+			// Monitor audio receiver stats to verify RTP is actually arriving
+			setTimeout(async () => {
+				if (pc.connectionState === "closed" || pc.connectionState === "failed") return;
+				try {
+					const stats = await e.receiver.getStats();
+					let audioInbound: any = null;
+					stats.forEach((report: any) => {
+						if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+							audioInbound = {
+								bytesReceived: report.bytesReceived,
+								packetsReceived: report.packetsReceived,
+								packetsLost: report.packetsLost,
+								jitter: report.jitter,
+								ssrc: report.ssrc,
+								mid: report.mid,
+							};
+						}
+					});
+					const trackState = audioTracks[0] ? {
+						enabled: audioTracks[0].enabled,
+						muted: audioTracks[0].muted,
+						readyState: audioTracks[0].readyState,
+					} : null;
+					console.log("[voice] AUDIO RECEIVER STATS @500ms:", audioInbound ?? "no inbound-rtp audio report",
+						"trackState:", trackState,
+						"contextState:", context.state);
+				} catch (err) {
+					if (err instanceof Error && err.name !== "InvalidStateError") console.warn("[voice] audio getStats @500ms:", err);
+				}
+			}, 500);
+
+			setTimeout(async () => {
+				if (pc.connectionState === "closed" || pc.connectionState === "failed") return;
+				try {
+					const stats = await e.receiver.getStats();
+					let audioInbound: any = null;
+					stats.forEach((report: any) => {
+						if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+							audioInbound = {
+								bytesReceived: report.bytesReceived,
+								packetsReceived: report.packetsReceived,
+								packetsLost: report.packetsLost,
+								jitter: report.jitter,
+								ssrc: report.ssrc,
+								mid: report.mid,
+							};
+						}
+					});
+					console.log("[voice] AUDIO RECEIVER STATS @2000ms:", audioInbound ?? "no inbound-rtp audio report",
+						"contextState:", context.state);
+				} catch (err) {
+					if (err instanceof Error && err.name !== "InvalidStateError") console.warn("[voice] audio getStats @2s:", err);
+				}
+			}, 2000);
 		};
 		const __minimalStreamViewer =
 			this.settings.isStreamViewer &&
@@ -2173,9 +2348,6 @@ a=rtcp-mux\r`;
 		}
 		if (!__minimalStreamViewer) {
 			const bitrate = this.settings.bitrate || 2500000;
-			// #region agent log
-			DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:startWebRTC-createTransceivers',message:'About to create video transceiver',data:{isStreamViewer:this.settings.isStreamViewer,isStream:this.settings.stream,hasLive:!!this.settings.live},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'HA'})}).catch(()=>{});
-			// #endregion
 			// VIEWER FIX: Stream viewers should NOT create sendonly video transceivers.
 			// They need recvonly to receive the producer's video stream.
 			if (this.settings.isStreamViewer) {
@@ -2184,9 +2356,6 @@ a=rtcp-mux\r`;
 					direction: "recvonly",
 					streams: [],
 				});
-				// #region agent log
-				DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:startWebRTC-viewerTransceivers',message:'Created recvonly video transceiver for stream viewer',data:{transceiverCount:pc.getTransceivers().length,directions:pc.getTransceivers().map(t=>({kind:t.receiver.track?.kind||'unknown',direction:t.direction}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'HA'})}).catch(()=>{});
-				// #endregion
 				console.log("[voice] Stream viewer: created 1 video transceiver (recvonly), no audio");
 			} else {
 				// Non-viewer (streamer or regular voice): create sendonly video + extra transceivers
@@ -2244,12 +2413,6 @@ a=rtcp-mux\r`;
 		if (pc.signalingState === "stable") {
 			await pc.setLocalDescription();
 		}
-		// #region agent log
-		const offerSdp = pc.localDescription?.sdp || '';
-		const videoDirections = offerSdp.match(/a=(sendonly|recvonly|sendrecv|inactive)/g) || [];
-		const videoMlines = offerSdp.split('\nm=video').slice(1).map((s:string) => 'm=video' + s.split('\nm=')[0].substring(0, 200));
-		DEBUG_INGEST_URL&&fetch(DEBUG_INGEST_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'voice.ts:startWebRTC-afterSetLocal',message:'Offer SDP created',data:{isStreamViewer:this.settings.isStreamViewer,isStream:this.settings.stream,mlineCount:(offerSdp.match(/^m=/gm)||[]).length,directions:videoDirections,videoMlinePreview:videoMlines.slice(0,2),transceiverDirections:pc.getTransceivers().map(t=>({kind:t.receiver.track?.kind||'unknown',direction:t.direction,mid:t.mid}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'HA'})}).catch(()=>{});
-		// #endregion
 		if (!sdp) {
 			this.status = "noSDP";
 			this.ws?.close();
