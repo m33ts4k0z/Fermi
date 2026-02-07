@@ -4882,8 +4882,24 @@ img.error::after {
 }
 .admin-nav {
 	display: flex;
+	align-items: center;
 	gap: 8px;
 	margin-bottom: 16px;
+	flex-wrap: wrap;
+}
+
+.admin-exit-link {
+	margin-left: auto;
+	padding: 8px 16px;
+	border-radius: 6px;
+	background: var(--secondary-bg);
+	color: var(--primary-text);
+	text-decoration: none;
+	font-size: 0.95em;
+}
+
+.admin-exit-link:hover {
+	background: var(--button-bg);
 }
 .admin-tab-btn {
 	padding: 8px 16px;
@@ -4926,4 +4942,35 @@ img.error::after {
 }
 .admin-btn-danger:hover {
 	background: color-mix(in srgb, var(--red), black 20%);
+}
+.admin-rights-container {
+	max-height: 240px;
+	overflow-y: auto;
+	margin-bottom: 8px;
+}
+.admin-modal-overlay {
+	align-items: center;
+	justify-content: center;
+}
+
+.admin-modal {
+	background: var(--primary-bg) !important;
+	color: var(--primary-text);
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.admin-modal label,
+.admin-modal input,
+.admin-modal strong {
+	color: var(--primary-text);
+}
+
+.admin-modal input {
+	background: var(--secondary-bg);
+	border: 1px solid var(--secondary-bg);
+	color: var(--primary-text);
+}
+
+.admin-modal .admin-rights-search {
+	margin-bottom: 4px;
 }
