@@ -986,6 +986,8 @@ class Localuser {
 							}
 						}
 						if (user === this.user) this.loaduser();
+						// Force full member list redraw so offline/online sections re-group correctly
+						this.listGuild = undefined;
 						this.memberListQue();
 					}
 					break;
